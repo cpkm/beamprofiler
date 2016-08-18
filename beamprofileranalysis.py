@@ -18,7 +18,7 @@ SATLIM = 0.02;  #fraction of non-zero pixels allowed to be saturated
 PIXSIZE = 1.4;  #pixel size in um, assumed square
 
 
-filedir = '/Users/cpkmanchee/Google Drive/PhD/Data/2016-07-29 beampro b07p79'
+filedir = '2016-07-29 beampro b07p79'
 
 filename = 'WIN_20160729_15_36_54_Pro.jpg'
 
@@ -30,7 +30,7 @@ for X in files:
     
     im = plt.imread(X)
 
-'''
+
     plt.subplot(2,2,1)
     plt.imshow(im[:,:,0])
     plt.subplot(2,2,2)
@@ -39,5 +39,4 @@ for X in files:
     plt.imshow(im[:,:,2])
     plt.subplot(2,2,4)
     plt.imshow(im)
-'''
     
