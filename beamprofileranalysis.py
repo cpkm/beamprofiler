@@ -39,4 +39,6 @@ for X in files:
     plt.imshow(im[:,:,2])
     plt.subplot(2,2,4)
     plt.imshow(im)
+
+plt.show()
     
