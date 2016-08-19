@@ -8,13 +8,50 @@ Created on Wed Aug  3 11:31:57 2016
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
+import scipy.optimize as opt
 
 import glob
 
 
+def gaussian2D(X,x0,y0,sigx,sigy,amp,const):
+    '''
+    generates a 2D gaussian surface of size (n x m)
+    
+    Inputs:
+    
+        x = meshgrid of x array
+        y = meshgrid of y array
+        
+    where x and y are of size (n x m)
+    n = y.shape[0] (or x.) = number of rows
+    m = x.shape[1] (or y.) = number of columns
+    
+        x0,y0 = peak location
+    
+        sig_ = standard deviation in x and y, gaussian 1/e radius
+    
+        amp = amplitude
+    
+        const = offset (constant)
+    
+    Output:
+        
+        g.ravel() = flattened array of gaussian amplitude data
+    
+    where g is the 2D array of gaussian amplitudes of size (n x m)
+    '''
+    
+    x = X[0]
+    y = X[1]
+    g = amp*np.exp(-(x-x0)**2/(2*sigx**2) - (y-y0)**2/(2*sigy**2)) + const
+       
+    return g.ravel()
+
+
+
 BITS = 8;       #image channel intensity resolution
 SAT = [0,0,0];  #channel saturation detection
-SATLIM = 0.02;  #fraction of non-zero pixels allowed to be saturated
+SATLIM = 0.001;  #fraction of non-zero pixels allowed to be saturated
 PIXSIZE = 1.4;  #pixel size in um, assumed square
 
 
@@ -24,13 +61,45 @@ filename = 'WIN_20160729_15_36_54_Pro.jpg'
 
 files = glob.glob(filedir+'/*.jpg')
 
-file = filedir + '/' + filename
+files = [filedir + '/' + filename]
 
-for X in files:
+for f in files:
     
-    im = plt.imread(X)
+    im = plt.imread(f)
+    
+    x = np.arange(im.shape[1])*PIXSIZE
+    y = np.arange(im.shape[0])*PIXSIZE
+    x,y = np.meshgrid(x,y)
+    Nnnz = np.zeros(im.shape[2])
+    Nsat = np.zeros(im.shape[2])
+    data = np.zeros(im[...,0].shape, dtype = 'uint32')
 
-
+    for i in range(im.shape[2]):
+        
+        Nnnz[i] = (im[:,:,i] != 0).sum()
+        Nsat[i] = (im[:,:,i] >= 2**BITS-1).sum()
+        
+        if Nsat[i]/Nnnz[i] <= SATLIM:
+            data += im[:,:,i]
+            
+    data = data.astype(float)
+    
+    (y0,x0) = np.unravel_index(data.argmax(), data.shape)   
+    x0 *= PIXSIZE
+    y0 *= PIXSIZE
+    sigx = 50
+    sigy = 50
+    
+    p0 = [x0,y0,sigx,sigy,data.max(),0]
+    
+    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
+            
+    
+    
+    
+    
+    
+    '''
     plt.subplot(2,2,1)
     plt.imshow(im[:,:,0])
     plt.subplot(2,2,2)
@@ -39,6 +108,7 @@ for X in files:
     plt.imshow(im[:,:,2])
     plt.subplot(2,2,4)
     plt.imshow(im)
+    '''
 
 plt.show()
     
