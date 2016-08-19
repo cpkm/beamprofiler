@@ -47,6 +47,36 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const):
        
     return g.ravel()
 
+def gaussianbeamwaist(z,z0,w0,M2=1,lambda = 1.030)
+    '''
+    generate gaussian beam profile w(z)
+
+    w(z) = w0*(1+((z-z0)/zR)^2)^(1/2)
+
+    where zR is the Rayleigh length given by
+
+    zR = pi*w0^2/lambda
+
+    Units for waist and wavelength is um.
+    Units for optical axis positon is mm.
+
+    Inputs:
+
+        z = array of position along optical axis in mm
+        z0 = position of beam waist (focus) in mm
+        w0 = beam waist in um
+        M2 = beam parameter M^2, unitless
+        lambda =  wavelenth in um, default to 1030nm (1.03um)
+
+    Outputs:
+
+        w = w(z) position dependent beam waist in um. Same size as 'z'
+    '''
+
+    w = w0*(1+((z-z0)*M2/(np.pi*w0**2/lambda))**2)**(1/2)
+
+    return w
+
 
 
 BITS = 8;       #image channel intensity resolution
