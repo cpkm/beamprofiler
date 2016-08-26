@@ -54,7 +54,32 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const,theta=0):
     g = amp*np.exp(-(a*(x-x0)**2 -b*(x-x0)*(y-y0) + c*(y-y0)**2)) + const
        
     return g.ravel()
+
+
+def fitgaussian2D(data, rot=0):
+    '''
+    fits data to 2D gaussian function
+
+    Inputs:
+    	data = 2D array of image data
+    '''
+	data = data.astype(float)
+
+	x = np.arange(data.shape[1])*PIXSIZE
+    y = np.arange(data.shape[0])*PIXSIZE
+    x,y = np.meshgrid(x,y)
     
+    (y0,x0) = np.unravel_index(data.argmax(), data.shape)   
+    x0 *= PIXSIZE
+    y0 *= PIXSIZE
+    sigx = 50
+    sigy = 50
+    
+    p0 = [x0,y0,sigx,sigy,data.max(),0]
+    
+    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
+    
+
 
 def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
     '''
@@ -106,9 +131,6 @@ for f in files:
     
     im = plt.imread(f)
     
-    x = np.arange(im.shape[1])*PIXSIZE
-    y = np.arange(im.shape[0])*PIXSIZE
-    x,y = np.meshgrid(x,y)
     Nnnz = np.zeros(im.shape[2])
     Nsat = np.zeros(im.shape[2])
     data = np.zeros(im[...,0].shape, dtype = 'uint32')
