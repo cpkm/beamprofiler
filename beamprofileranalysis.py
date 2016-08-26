@@ -63,9 +63,9 @@ def fitgaussian2D(data, rot=None):
     Inputs:
     	data = 2D array of image data
     '''
-	data = data.astype(float)
+    data = data.astype(float)
 
-	x = np.arange(data.shape[1])*PIXSIZE
+    x = np.arange(data.shape[1])*PIXSIZE
     y = np.arange(data.shape[0])*PIXSIZE
     x,y = np.meshgrid(x,y)
     
@@ -77,10 +77,12 @@ def fitgaussian2D(data, rot=None):
     
     p0 = [x0,y0,sigx,sigy,data.max(),0]
 
-    if rot is None:
-    	popt,pcov = opt.curve_fit(lambda X,p0: gaussian2D(X,*p0,0),(x,y),data.ravel(),p0)
-    else:
-	    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
+    if rot is not None:
+        p0 += [0]
+    
+    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
+    
+    return popt,pcov
     
 
 
@@ -147,22 +149,10 @@ for f in files:
             data += im[:,:,i]
             
     data = data.astype(float)
-    
-    (y0,x0) = np.unravel_index(data.argmax(), data.shape)   
-    x0 *= PIXSIZE
-    y0 *= PIXSIZE
-    sigx = 50
-    sigy = 50
-    
-    p0 = [x0,y0,sigx,sigy,data.max(),0]
-    
-    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
-            
-    
-    
-    
-    
-    
+
+    popt, pcov = fitgaussian2D(data, 1)
+       
+        
     '''
     plt.subplot(2,2,1)
     plt.imshow(im[:,:,0])
