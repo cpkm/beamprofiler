@@ -13,12 +13,13 @@ import scipy.optimize as opt
 import glob
 
 
-def gaussian2D(X,x0,y0,sigx,sigy,amp,const):
+def gaussian2D(X,x0,y0,sigx,sigy,amp,const,theta=0):
     '''
     generates a 2D gaussian surface of size (n x m)
     
     Inputs:
     
+        X = [x,y]
         x = meshgrid of x array
         y = meshgrid of y array
         
@@ -33,6 +34,8 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const):
         amp = amplitude
     
         const = offset (constant)
+
+        theta = rotation parameter, 0 by default
     
     Output:
         
@@ -43,9 +46,15 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const):
     
     x = X[0]
     y = X[1]
-    g = amp*np.exp(-(x-x0)**2/(2*sigx**2) - (y-y0)**2/(2*sigy**2)) + const
+
+    a = np.cos(theta)**2/(2*sigx**2) + np.sin(theta)**2/(2*sigy**2)
+    b = -np.sin(2*theta)/(4*sigx**2) + np.sin(2*theta)/(4*sigy**2)
+    c = np.sin(theta)**2/(2*sigx**2) + np.cos(theta)**2/(2*sigy**2)
+
+    g = amp*np.exp(-(a*(x-x0)**2 -b*(x-x0)*(y-y0) + c*(y-y0)**2)) + const
        
     return g.ravel()
+    
 
 def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
     '''
