@@ -43,7 +43,7 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const,theta=0):
     
     where g is the 2D array of gaussian amplitudes of size (n x m)
     '''
-    
+
     x = X[0]
     y = X[1]
 
@@ -56,7 +56,7 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const,theta=0):
     return g.ravel()
 
 
-def fitgaussian2D(data, rot=0):
+def fitgaussian2D(data, rot=None):
     '''
     fits data to 2D gaussian function
 
@@ -76,8 +76,11 @@ def fitgaussian2D(data, rot=0):
     sigy = 50
     
     p0 = [x0,y0,sigx,sigy,data.max(),0]
-    
-    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
+
+    if rot is None:
+    	popt,pcov = opt.curve_fit(lambda X,p0: gaussian2D(X,*p0,0),(x,y),data.ravel(),p0)
+    else:
+	    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
     
 
 
