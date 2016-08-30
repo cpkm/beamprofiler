@@ -13,13 +13,13 @@ import scipy.optimize as opt
 import glob
 
 
-def gaussian2D(X,x0,y0,sigx,sigy,amp,const,theta=0):
+def gaussian2D(xy_meshgrid,x0,y0,sigx,sigy,amp,const,theta=0):
     '''
     generates a 2D gaussian surface of size (n x m)
     
     Inputs:
     
-        X = [x,y]
+        xy_meshgrid = [x,y]
         x = meshgrid of x array
         y = meshgrid of y array
         
@@ -44,8 +44,8 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const,theta=0):
     where g is the 2D array of gaussian amplitudes of size (n x m)
     '''
 
-    x = X[0]
-    y = X[1]
+    x = xy_meshgrid[0]
+    y = xy_meshgrid[1]
 
     a = np.cos(theta)**2/(2*sigx**2) + np.sin(theta)**2/(2*sigy**2)
     b = -np.sin(2*theta)/(4*sigx**2) + np.sin(2*theta)/(4*sigy**2)
@@ -56,22 +56,27 @@ def gaussian2D(X,x0,y0,sigx,sigy,amp,const,theta=0):
     return g.ravel()
 
 
-def fitgaussian2D(data, rot=None):
+def fitgaussian2D(data, xy_tuple, rot=None):
     '''
     fits data to 2D gaussian function
 
     Inputs:
     	data = 2D array of image data
+    	xy_tuple = x and y data as a tuple. each is a meshgrid
+    	rot = enable rotation, default is None, if anything else rotation is allowed
+    
+    Outputs:
+        popt, pcov = optimized parameters and covarience matrix
     '''
+
     data = data.astype(float)
 
-    x = np.arange(data.shape[1])*PIXSIZE
-    y = np.arange(data.shape[0])*PIXSIZE
-    x,y = np.meshgrid(x,y)
+    x = xy_tuple[0]
+    y = xy_tuple[1]
     
-    (y0,x0) = np.unravel_index(data.argmax(), data.shape)   
-    x0 *= PIXSIZE
-    y0 *= PIXSIZE
+    ind0 = np.unravel_index(data.argmax(), data.shape)   
+    x0 = x[ind0]
+    y0 = y[ind0]
     sigx = 50
     sigy = 50
     
@@ -116,6 +121,34 @@ def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
 
     return w
 
+def getroi(data,Nsig=5):
+    xy0_ind = np.unravel_index(data.argmax(), data.shape)
+    varx_ind = np.unravel_index(np.abs(data-np.sqrt(np.var(data,1)).max()).argmin(),data.shape)
+    vary_ind = np.unravel_index(np.abs(data-np.sqrt(np.var(data,0)).max()).argmin(),data.shape)
+
+    varx = np.abs(xy0_ind[1] - varx_ind[1])
+    vary = np.abs(xy0_ind[0] - vary_ind[0])
+
+    left = np.int(xy0_ind[1] - Nsig*varx)
+    bottom = np.int(xy0_ind[0] - Nsig*vary)
+    width = np.int(2*Nsig*varx)
+    height = np.int(2*Nsig*vary)
+
+    if left <= 0:
+        width += left
+        left = 0
+
+    if bottom <= 0:
+        height += bottom
+        bottom = 0
+
+    if left+width > data.shape[1]:
+        width = data.shape[1] - left
+
+    if bottom+height > data.shape[0]:
+        height = data.shape[0] - bottom 
+
+    return [left,bottom,width,height]
 
 
 BITS = 8;       #image channel intensity resolution
@@ -130,12 +163,15 @@ filename = 'WIN_20160729_15_36_54_Pro.jpg'
 
 files = glob.glob(filedir+'/*.jpg')
 
-files = [filedir + '/' + filename]
+files = []#[filedir + '/' + filename]
 
 for f in files:
     
     im = plt.imread(f)
     
+    x = np.arange(im.shape[1])*PIXSIZE
+    y = np.arange(im.shape[0])*PIXSIZE
+    x,y = np.meshgrid(x,y)
     Nnnz = np.zeros(im.shape[2])
     Nsat = np.zeros(im.shape[2])
     data = np.zeros(im[...,0].shape, dtype = 'uint32')
@@ -150,38 +186,22 @@ for f in files:
             
     data = data.astype(float)
 
-    popt, pcov = fitgaussian2D(data, 1)
-       
-        
+    popt, pcov = fitgaussian2D(data, (x,y), 1)
+    
     '''
-    plt.subplot(2,2,1)
-    plt.imshow(im[:,:,0])
-    plt.subplot(2,2,2)
-    plt.imshow(im[:,:,1])
-    plt.subplot(2,2,3)
-    plt.imshow(im[:,:,2])
-    plt.subplot(2,2,4)
-    plt.imshow(im)
+    #plot result
+    data_fitted = gaussian2D((x,y), *popt)
+
+    fig, ax = plt.subplots(1, 1)
+    ax.hold(True)
+    ax.imshow(data, cmap=plt.cm.jet, origin='bottom',
+        extent=(x.min(), x.max(), y.min(), y.max()))
+    ax.contour(x, y, data_fitted.reshape(data.shape), 8, colors='w')
+    plt.show()   
     '''
 
-plt.show()
 
 
-'''
-# plot twoD_Gaussian data generated above
-plt.figure()
-plt.imshow(data.reshape(201, 201))
-plt.colorbar()
 
-#plot result
-data_fitted = twoD_Gaussian((x, y), *popt)
-
-fig, ax = plt.subplots(1, 1)
-ax.hold(True)
-ax.imshow(data_noisy.reshape(201, 201), cmap=plt.cm.jet, origin='bottom',
-    extent=(x.min(), x.max(), y.min(), y.max()))
-ax.contour(x, y, data_fitted.reshape(201, 201), 8, colors='w')
-plt.show()
-'''
 
     
