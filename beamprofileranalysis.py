@@ -121,14 +121,27 @@ def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
 
     return w
 
-def getroi(data,Nsig=5):
+def getroi(data,Nsig=4):
+    
+    '''
+    var is mislabbeled, actually sig, sig = sqrt(var)
+    '''
+    
     xy0_ind = np.unravel_index(data.argmax(), data.shape)
+    datax = np.sum(data,0)
+    datay = np.sum(data,1)
+    
+    '''
     varx_ind = np.unravel_index(np.abs(data-np.sqrt(np.var(data,1)).max()).argmin(),data.shape)
     vary_ind = np.unravel_index(np.abs(data-np.sqrt(np.var(data,0)).max()).argmin(),data.shape)
-
+    
     varx = np.abs(xy0_ind[1] - varx_ind[1])
     vary = np.abs(xy0_ind[0] - vary_ind[0])
+    '''
 
+    varx = np.abs(np.abs(datax-np.sqrt(np.var(datax))).argmin() - datax.argmax())
+    vary = np.abs(np.abs(datay-np.sqrt(np.var(datay))).argmin() - datay.argmax())
+    
     left = np.int(xy0_ind[1] - Nsig*varx)
     bottom = np.int(xy0_ind[0] - Nsig*vary)
     width = np.int(2*Nsig*varx)
@@ -147,8 +160,11 @@ def getroi(data,Nsig=5):
 
     if bottom+height > data.shape[0]:
         height = data.shape[0] - bottom 
-
-    return [left,bottom,width,height]
+    
+    print([left,bottom,width,height])
+    print(xy0_ind)
+    print(varx,vary)
+    return data[bottom:bottom+height,left:left+width]
 
 
 BITS = 8;       #image channel intensity resolution
@@ -163,15 +179,12 @@ filename = 'WIN_20160729_15_36_54_Pro.jpg'
 
 files = glob.glob(filedir+'/*.jpg')
 
-files = []#[filedir + '/' + filename]
+files = [filedir + '/' + filename]
 
 for f in files:
     
     im = plt.imread(f)
     
-    x = np.arange(im.shape[1])*PIXSIZE
-    y = np.arange(im.shape[0])*PIXSIZE
-    x,y = np.meshgrid(x,y)
     Nnnz = np.zeros(im.shape[2])
     Nsat = np.zeros(im.shape[2])
     data = np.zeros(im[...,0].shape, dtype = 'uint32')
@@ -185,10 +198,18 @@ for f in files:
             data += im[:,:,i]
             
     data = data.astype(float)
+    data = getroi(data)
+
+    x = np.arange(data.shape[1])*PIXSIZE
+    y = np.arange(data.shape[0])*PIXSIZE
+    x,y = np.meshgrid(x,y)
 
     popt, pcov = fitgaussian2D(data, (x,y), 1)
     
-    '''
+    #plot orig
+    fig1, ax1 = plt.subplots(1,1)
+    ax1.imshow(im)
+    
     #plot result
     data_fitted = gaussian2D((x,y), *popt)
 
@@ -196,9 +217,9 @@ for f in files:
     ax.hold(True)
     ax.imshow(data, cmap=plt.cm.jet, origin='bottom',
         extent=(x.min(), x.max(), y.min(), y.max()))
-    ax.contour(x, y, data_fitted.reshape(data.shape), 8, colors='w')
+    ax.contour(x, y, data_fitted.reshape(data.shape), 10, colors='w')
     plt.show()   
-    '''
+    
 
 
 
