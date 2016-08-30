@@ -67,6 +67,7 @@ def fitgaussian2D(data, xy_tuple, rot=None):
     
     Outputs:
         popt, pcov = optimized parameters and covarience matrix
+            popt = [x0,y0,sigx,sigy,amp,const,*theta], *theta not included if rot=None
     '''
 
     data = data.astype(float)
@@ -77,8 +78,8 @@ def fitgaussian2D(data, xy_tuple, rot=None):
     ind0 = np.unravel_index(data.argmax(), data.shape)   
     x0 = x[ind0]
     y0 = y[ind0]
-    sigx = 50
-    sigy = 50
+    sigx = x.max()/(2*4)
+    sigy = y.max()/(2*4)
     
     p0 = [x0,y0,sigx,sigy,data.max(),0]
 
@@ -122,30 +123,34 @@ def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
     return w
 
 def getroi(data,Nsig=4):
-    
     '''
-    var is mislabbeled, actually sig, sig = sqrt(var)
+    Generates a region of interest for a 2D array, based on the varience of the data.
+    Cropping box is defined by [left, bottom, width, height]
+    
+    Inputs:
+        data = data array, 2D
+        Nsig = number of std away from average to include in roi, default is 4 (99.994% inclusion)
+        
+    Outputs:
+        data_roi = cropped data set, 2D array, size height x width    
     '''
     
-    xy0_ind = np.unravel_index(data.argmax(), data.shape)
     datax = np.sum(data,0)
     datay = np.sum(data,1)
     
-    '''
-    varx_ind = np.unravel_index(np.abs(data-np.sqrt(np.var(data,1)).max()).argmin(),data.shape)
-    vary_ind = np.unravel_index(np.abs(data-np.sqrt(np.var(data,0)).max()).argmin(),data.shape)
-    
-    varx = np.abs(xy0_ind[1] - varx_ind[1])
-    vary = np.abs(xy0_ind[0] - vary_ind[0])
-    '''
+    x = np.arange(datax.shape[0])
+    y = np.arange(datay.shape[0])
 
-    varx = np.abs(np.abs(datax-np.sqrt(np.var(datax))).argmin() - datax.argmax())
-    vary = np.abs(np.abs(datay-np.sqrt(np.var(datay))).argmin() - datay.argmax())
+    avgx = np.average(x, weights = datax)
+    avgy = np.average(y, weights = datay)
     
-    left = np.int(xy0_ind[1] - Nsig*varx)
-    bottom = np.int(xy0_ind[0] - Nsig*vary)
-    width = np.int(2*Nsig*varx)
-    height = np.int(2*Nsig*vary)
+    sigx = np.sqrt(np.sum(datax*(x-avgx)**2)/datax.sum())
+    sigy = np.sqrt(np.sum(datay*(y-avgy)**2)/datay.sum())
+
+    left = np.int(avgx - Nsig*sigx)
+    bottom = np.int(avgy - Nsig*sigy)
+    width = np.int(2*Nsig*sigx)
+    height = np.int(2*Nsig*sigy)
 
     if left <= 0:
         width += left
@@ -160,30 +165,14 @@ def getroi(data,Nsig=4):
 
     if bottom+height > data.shape[0]:
         height = data.shape[0] - bottom 
-    
-    print([left,bottom,width,height])
-    print(xy0_ind)
-    print(varx,vary)
+
     return data[bottom:bottom+height,left:left+width]
 
 
-BITS = 8;       #image channel intensity resolution
-SAT = [0,0,0];  #channel saturation detection
-SATLIM = 0.001;  #fraction of non-zero pixels allowed to be saturated
-PIXSIZE = 1.4;  #pixel size in um, assumed square
-
-
-filedir = '2016-07-29 testdata'
-
-filename = 'WIN_20160729_15_36_54_Pro.jpg'
-
-files = glob.glob(filedir+'/*.jpg')
-
-files = [filedir + '/' + filename]
-
-for f in files:
-    
-    im = plt.imread(f)
+def flattenrgb(im, bits=8, satlim=0.001):
+    '''
+    Flattens rbg array, excluding saturadted channels
+    '''
     
     Nnnz = np.zeros(im.shape[2])
     Nsat = np.zeros(im.shape[2])
@@ -192,23 +181,58 @@ for f in files:
     for i in range(im.shape[2]):
         
         Nnnz[i] = (im[:,:,i] != 0).sum()
-        Nsat[i] = (im[:,:,i] >= 2**BITS-1).sum()
+        Nsat[i] = (im[:,:,i] >= 2**bits-1).sum()
         
-        if Nsat[i]/Nnnz[i] <= SATLIM:
+        if Nsat[i]/Nnnz[i] <= satlim:
             data += im[:,:,i]
-            
+
+    return data
+    
+
+BITS = 8;       #image channel intensity resolution
+SAT = [0,0,0];  #channel saturation detection
+SATLIM = 0.001;  #fraction of non-zero pixels allowed to be saturated
+PIXSIZE = 1.4;  #pixel size in um, assumed square
+
+
+filedir = '2016-07-29 testdata'
+files = glob.glob(filedir+'/*.jpg')
+
+filename = 'WIN_20160729_15_36_54_Pro.jpg'
+#files = [filedir + '/' + filename]
+
+beam_parameters = []
+
+for f in files:
+    
+    im = plt.imread(f)
+    data = flattenrgb(im, BITS, SATLIM)
+    
     data = data.astype(float)
+
+    data_full = data    
     data = getroi(data)
 
     x = np.arange(data.shape[1])*PIXSIZE
     y = np.arange(data.shape[0])*PIXSIZE
     x,y = np.meshgrid(x,y)
 
-    popt, pcov = fitgaussian2D(data, (x,y), 1)
+    popt, pcov = fitgaussian2D(data, (x,y))
+               
+    beam_parameters += [popt] 
     
+beam_parameters = np.asarray(beam_parameters)
+
+wx = beam_parameters[:,2]
+wy = beam_parameters[:,3]
+
+plt.plot(wx)
+plt.plot(wy)
+
+'''
     #plot orig
-    fig1, ax1 = plt.subplots(1,1)
-    ax1.imshow(im)
+    #fig1, ax1 = plt.subplots(1,1)
+    #ax1.imshow(im)
     
     #plot result
     data_fitted = gaussian2D((x,y), *popt)
@@ -219,7 +243,7 @@ for f in files:
         extent=(x.min(), x.max(), y.min(), y.max()))
     ax.contour(x, y, data_fitted.reshape(data.shape), 10, colors='w')
     plt.show()   
-    
+'''
 
 
 
