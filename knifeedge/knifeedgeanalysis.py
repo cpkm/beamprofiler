@@ -8,3 +8,9 @@ Created on Fri Sep  2 12:24:59 2016
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
+import glob
+
+
+
+file = glob.glob('*.csv')
+data = np.loadtxt(file[0], delimiter = ',',skiprows = 1)
