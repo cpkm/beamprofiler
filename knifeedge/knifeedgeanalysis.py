@@ -14,3 +14,5 @@ import glob
 
 file = glob.glob('*.csv')
 data = np.loadtxt(file[0], delimiter = ',',skiprows = 1)
+x = data[:,0]
+power = data[:,1]
