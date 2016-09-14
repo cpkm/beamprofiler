@@ -91,7 +91,6 @@ def fitgaussian2D(data, xy_tuple, rot=None):
     return popt,pcov
     
 
-
 def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
     '''
     generate gaussian beam profile w(z)
@@ -121,6 +120,7 @@ def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
     w = w0*(1+(((z-z0)*1000)*M2/(np.pi*w0**2/wl))**2)**(1/2)
 
     return w
+
 
 def getroi(data,Nsig=4):
     '''
@@ -189,6 +189,33 @@ def flattenrgb(im, bits=8, satlim=0.001):
     return data
     
 
+def d4sigma(data, xy):
+    
+    '''
+    calculate D4sigma of beam
+    '''
+    
+    x = xy[0]
+    y = xy[1]
+    
+    dx,dy = np.meshgrid(np.gradient(x[0]),np.gradient(y[:,0]))
+    
+    A = np.sum(data*dx*dy)
+    
+    avgx = np.sum(data*x*dx*dy)/A
+    avgy = np.sum(data*y*dx*dy)/A
+    
+    d4sigmax = 4*np.sqrt(np.sum(data*(x-avgx)**2*dx*dy)/A)
+    d4sigmay = 4*np.sqrt(np.sum(data*(y-avgy)**2*dx*dy)/A)
+    
+    return np.array([avgx, avgy, d4sigmax, d4sigmay])
+    
+
+'''
+End of definitions
+'''    
+
+
 BITS = 8;       #image channel intensity resolution
 SAT = [0,0,0];  #channel saturation detection
 SATLIM = 0.001;  #fraction of non-zero pixels allowed to be saturated
@@ -202,6 +229,7 @@ filename = 'WIN_20160729_15_36_54_Pro.jpg'
 #files = [filedir + '/' + filename]
 
 beam_parameters = []
+beam_stats = []
 
 for f in files:
     
@@ -217,19 +245,27 @@ for f in files:
     y = np.arange(data.shape[0])*PIXSIZE
     x,y = np.meshgrid(x,y)
 
-    popt, pcov = fitgaussian2D(data, (x,y))
+    popt, pcov = fitgaussian2D(data, (x,y),1)
+    d4stats = d4sigma(data, (x,y))
                
     beam_parameters += [popt] 
+    beam_stats += [d4stats]
     
 beam_parameters = np.asarray(beam_parameters)
+beam_stats = np.asarray(beam_stats)
 
-wx = beam_parameters[:,2]
-wy = beam_parameters[:,3]
+wx = 2*beam_parameters[:,2]
+wy = 2*beam_parameters[:,3]
+d2x = (1/2)*beam_stats[:,2]
+d2y = (1/2)*beam_stats[:,3]
 
 z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
 
 plt.plot(z,wx)
 plt.plot(z,wy)
+
+plt.plot(z,d2x)
+plt.plot(z,d2y)
 
 '''
     #plot orig
