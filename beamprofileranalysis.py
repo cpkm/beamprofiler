@@ -226,8 +226,12 @@ beam_parameters = np.asarray(beam_parameters)
 wx = beam_parameters[:,2]
 wy = beam_parameters[:,3]
 
-plt.plot(wx)
-plt.plot(wy)
+#need array of positions
+z = np.loadtxt('position.txt', skiprows = 1)
+
+plt.plot(z,wx)
+plt.plot(z,wy)
+plt.show()
 
 '''
     #plot orig
