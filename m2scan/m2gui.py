@@ -127,7 +127,8 @@ class Application(Tk):
     def videoLoop(self):
         
         try:
-            if not self.stopEvent.is_set():
+            stopCheck = self.stopEvent.is_set()
+            if not stopCheck:
                 # Capture frame-by-frame
                 r,frame = self.cam.read()
                 
@@ -145,7 +146,6 @@ class Application(Tk):
                     self.previewPanel.configure(image = img)
                     self.previewPanel.image = img 
                 
-                if not self.stopEvent.is_set():
                     self.previewPanel.after(10, self.videoLoop())
                     
         except AssertionError:
