@@ -82,7 +82,8 @@ class Application(Tk):
         self.previewPanel = Label(self, image = img)
         self.previewPanel.image = img
         self.previewPanel.grid(row=3, column=0, columnspan=4, sticky = W)
-        
+    
+'''    
     def checkQueue(self):
         
       try:
@@ -95,7 +96,8 @@ class Application(Tk):
       # make another check
       if not self.stopEvent.is_set():
           self.after_idle(self.checkQueue)
-         
+'''
+      
     def onClose(self):
         '''what to do when window is closed'''
         try:        
