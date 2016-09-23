@@ -76,7 +76,7 @@ class Application(Tk):
         self.stopPreviewButton = Button(self, text='Stop Preview', command = self.stopPreview)
         self.stopPreviewButton.grid(row=2,column=2, sticky = W)
 
-        self.imgQueue = qu.Queue()        
+        self.imgQueue = qu.Queue(maxsize=1000)        
         
         img = None
         self.previewPanel = Label(self, image = img)
@@ -160,7 +160,7 @@ class Application(Tk):
         self.thread.start()
         print('Preview started')
         
-        self.after(20, self.checkQueue)
+        #self.after(20, self.checkQueue)
 
     def stopPreview(self):
         
@@ -182,11 +182,11 @@ class Application(Tk):
             stop_check = self.stopEvent.is_set()
             if not stop_check:
                 # Capture frame-by-frame
-                print(stop_check)
+                #print(stop_check)
                 r,frame = self.cam.read()
                 
                 if r:
-                    print('got frame')
+                    #print('got frame')
                     width = 400
                     frame_sized = cv2.resize(frame, (width, np.int(9*width/16)))  
                 
@@ -197,13 +197,13 @@ class Application(Tk):
                     image = Image.fromarray(frame_sized)
                     img = ImageTk.PhotoImage(image)
                     
-                    self.imgQueue.put(img)
-                    self.after(20, self.videoLoop)
+                    #self.imgQueue.put(img)
+                    #self.after(20, self.videoLoop)
                     
-                    #self.previewPanel.configure(image = img)
-                    #self.previewPanel.image = img 
+                    self.previewPanel.configure(image = img)
+                    self.previewPanel.image = img 
                 
-                #self.previewPanel.after(10, self.videoLoop)
+                self.previewPanel.after(10, self.videoLoop)
                 
         except AssertionError:
             #print('Some dumb AssertionError')
