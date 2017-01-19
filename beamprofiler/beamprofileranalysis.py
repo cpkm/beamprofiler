@@ -3,6 +3,12 @@
 Created on Wed Aug  3 11:31:57 2016
 
 @author: cpkmanchee
+
+Notes on beamwaist:
+
+I ~ exp(-2*r**2/w0**2)
+w0 is 1/e^2 waist radius
+w0 = 2*sigma (sigma normal definition in gaussian)
 """
 
 import numpy as np
@@ -11,6 +17,7 @@ import matplotlib.pyplot as plt
 import scipy.optimize as opt
 
 import glob
+
 
 
 def gaussian2D(xy_meshgrid,x0,y0,sigx,sigy,amp,const,theta=0):
@@ -91,7 +98,7 @@ def fitgaussian2D(data, xy_tuple, rot=None):
     return popt,pcov
     
 
-def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
+def gaussianbeamwaist(z,z0,w0,M2=1,const=0,wl=1.030):
     '''
     generate gaussian beam profile w(z)
 
@@ -117,9 +124,22 @@ def gaussianbeamwaist(z,z0,w0,M2=1,wl=1.030):
         w = w(z) position dependent beam waist in um. Same size as 'z'
     '''
     z = np.asarray(z).astype(float)
-    w = w0*(1+(((z-z0)*1000)*M2/(np.pi*w0**2/wl))**2)**(1/2)
+    w = w0*(1+(((z-z0)*1000)*M2/(np.pi*w0**2/wl))**2)**(1/2) + const
 
     return w
+
+def fitM2(wz,z):
+       
+    w0 = np.min(wz)
+    z0 = z[np.argmin(wz)]
+    const = 0
+    
+    p0 = [z0,w0,1,const]
+        
+    popt,pcov = opt.curve_fit(gaussianbeamwaist,z,wz,p0,bounds=([0,-np.inf,1,-np.inf],np.inf))
+    
+    return popt,pcov
+    
 
 
 def getroi(data,Nsig=4):
@@ -225,9 +245,6 @@ PIXSIZE = 1.4;  #pixel size in um, assumed square
 filedir = '2016-07-29 testdata'
 files = glob.glob(filedir+'/*.jpg')
 
-filename = 'WIN_20160729_15_36_54_Pro.jpg'
-#files = [filedir + '/' + filename]
-
 beam_parameters = []
 beam_stats = []
 
@@ -261,11 +278,14 @@ d2y = (1/2)*beam_stats[:,3]
 
 z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
 
-plt.plot(z,wx)
-plt.plot(z,wy)
+poptx, pcovx = fitM2(d2x,z)
+popty, pcovy = fitM2(d2y,z)
 
 plt.plot(z,d2x)
 plt.plot(z,d2y)
+plt.plot(z,gaussianbeamwaist(z,*poptx))
+plt.plot(z,gaussianbeamwaist(z,*popty))
+
 
 '''
     #plot orig
