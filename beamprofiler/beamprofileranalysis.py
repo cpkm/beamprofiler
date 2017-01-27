@@ -123,8 +123,10 @@ def gaussianbeamwaist(z,z0,w0,M2=1,const=0,wl=1.030):
 
         w = w(z) position dependent beam waist in um. Same size as 'z'
     '''
-    z = np.asarray(z).astype(float)
-    w = w0*(1+(((z-z0)*1000)*M2/(np.pi*w0**2/wl))**2)**(1/2) + const
+    z = 1000*np.asarray(z).astype(float)
+    z0 = 1000*z0
+ 
+    w = (w0**2 + M2**2*(wl/(np.pi*w0))**2*(z-z0)**2)**(1/2) +const
 
     return w
 
@@ -135,8 +137,10 @@ def fitM2(wz,z):
     const = 0
     
     p0 = [z0,w0,1,const]
+    
+    limits = ([0,-np.inf,1,-np.inf], np.inf)
         
-    popt,pcov = opt.curve_fit(gaussianbeamwaist,z,wz,p0,bounds=([0,-np.inf,1,-np.inf],np.inf))
+    popt,pcov = opt.curve_fit(gaussianbeamwaist,z,wz,p0,bounds=limits)
     
     return popt,pcov
     
@@ -236,9 +240,9 @@ End of definitions
 '''    
 
 
-BITS = 8;       #image channel intensity resolution
-SAT = [0,0,0];  #channel saturation detection
-SATLIM = 0.001;  #fraction of non-zero pixels allowed to be saturated
+BITS = 8       #image channel intensity resolution
+SAT = [0,0,0]  #channel saturation detection
+SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
 PIXSIZE = 1.4;  #pixel size in um, assumed square
 
 
@@ -277,6 +281,7 @@ d2x = (1/2)*beam_stats[:,2]
 d2y = (1/2)*beam_stats[:,3]
 
 z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
+z = 2*z
 
 poptx, pcovx = fitM2(d2x,z)
 popty, pcovy = fitM2(d2y,z)

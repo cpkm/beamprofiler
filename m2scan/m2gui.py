@@ -60,7 +60,7 @@ class Application(Tk):
         
         self.saveDir = StringVar()
         home = os.path.expanduser("~")
-        self.saveDir.set(home + '\\test')
+        self.saveDir.set(os.path.join(home, 'default_image'))
         
         self.saveDirBox = Entry(self, textvariable = self.saveDir)
         self.saveDirBox.grid(row=1, column=1, columnspan = 2, sticky=W)
