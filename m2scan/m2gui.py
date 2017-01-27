@@ -11,12 +11,12 @@ import queue as qu
 import cv2
 import matplotlib.pyplot as plt
 import threading
-import time
 
 
 from tkinter import *
 from tkinter.filedialog import asksaveasfilename
 from PIL import Image, ImageTk
+from time import sleep
 
 
 class Application(Tk):
@@ -50,7 +50,7 @@ class Application(Tk):
         self.imgAvLabel.grid(row=0, column=2, sticky = W)
         
         self.imgAvNum = StringVar()
-        self.imgAvNum.set('100')        
+        self.imgAvNum.set('10')        
         
         self.imgAvEntry = Entry(self, textvariable = self.imgAvNum)
         self.imgAvEntry.grid(row=0, column=3, columnspan=1, sticky = W)
@@ -59,7 +59,8 @@ class Application(Tk):
         self.saveLabel.grid(row = 1, column = 0, columnspan = 1, sticky = W)
         
         self.saveDir = StringVar()
-        self.saveDir.set('Enter save folder')
+        home = os.path.expanduser("~")
+        self.saveDir.set(home + '\\test')
         
         self.saveDirBox = Entry(self, textvariable = self.saveDir)
         self.saveDirBox.grid(row=1, column=1, columnspan = 2, sticky=W)
@@ -83,7 +84,7 @@ class Application(Tk):
         self.previewPanel.image = img
         self.previewPanel.grid(row=3, column=0, columnspan=4, sticky = W)
     
-'''    
+    '''    
     def checkQueue(self):
         
       try:
@@ -96,24 +97,30 @@ class Application(Tk):
       # make another check
       if not self.stopEvent.is_set():
           self.after_idle(self.checkQueue)
-'''
+    '''
       
     def onClose(self):
         '''what to do when window is closed'''
         try:        
             self.stopPreview()   
         except:
-            print('Could stop everything, destroying...')
+            print('Could not stop everything, destroying...')
                 
         self.destroy()
         
+    
     def onCapture(self):
         """Display message based on password input"""
         
         self.stopPreview()
         print('Stopped Preview')
-                
+
+        w = 1280
+        h = 720        
+        
         cap = cv2.VideoCapture(np.int(self.cameraName.get()))
+        cap.set(3,w)
+        cap.set(4,h)
 
         FRAMES_AVG = np.int(self.imgAvNum.get())
 
@@ -124,9 +131,11 @@ class Application(Tk):
     
             if frame is not None:
                 if i == 0:
+                    #first frame
                     im = frame.astype(float)/255
         
                 else:
+                    #average subsequent frames
                     im = (i*im + frame.astype(float)/255)/(i+1)
 
             i += 1
@@ -145,8 +154,8 @@ class Application(Tk):
         img.save(filename) #this depends on what I use to get the image
         print('Image saved')
         
-        #self.startPreview(self.camera_name.get())
-        #print('Yup started preview')
+        self.stopPreview() 
+        self.startPreview()
         
         
     def startPreview(self):
@@ -157,7 +166,12 @@ class Application(Tk):
         self.thread = threading.Thread(target=self.videoLoop, args=())
         self.stopEvent = threading.Event()
 
+        w = 1280
+        h = 720
+
         self.cam = cv2.VideoCapture(np.int(self.cameraName.get()))
+        self.cam.set(3, w)
+        self.cam.set(4, h)
         
         self.thread.start()
         print('Preview started')
@@ -172,6 +186,7 @@ class Application(Tk):
             self.cam.release()
             print('Released camera')
             self.previewPanel.configure(image = None)
+            self.previewPanel.image = None
             print('Removed preview image')
 
         except:
@@ -181,10 +196,10 @@ class Application(Tk):
     def videoLoop(self):
         
         try:
-            stop_check = self.stopEvent.is_set()
-            if not stop_check:
+            #stop_check = self.stopEvent.is_set()
+            while not self.stopEvent.wait(0.1):
                 # Capture frame-by-frame
-                #print(stop_check)
+
                 r,frame = self.cam.read()
                 
                 if r:
@@ -205,7 +220,7 @@ class Application(Tk):
                     self.previewPanel.configure(image = img)
                     self.previewPanel.image = img 
                 
-                self.previewPanel.after(10, self.videoLoop)
+                #self.previewPanel.after(10, self.videoLoop)
                 
         except AssertionError:
             #print('Some dumb AssertionError')
