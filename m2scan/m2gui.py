@@ -11,12 +11,11 @@ import queue as qu
 import cv2
 import matplotlib.pyplot as plt
 import threading
-
+import time
 
 from tkinter import *
 from tkinter.filedialog import asksaveasfilename
 from PIL import Image, ImageTk
-from time import sleep
 
 
 class Application(Tk):
@@ -112,6 +111,8 @@ class Application(Tk):
     def onCapture(self):
         """Display message based on password input"""
         
+        t0 = time.time()
+
         self.stopPreview()
         print('Stopped Preview')
 
@@ -156,6 +157,9 @@ class Application(Tk):
         
         self.stopPreview() 
         self.startPreview()
+
+        t1 = time.time()
+        print(t1-t0)
         
         
     def startPreview(self):

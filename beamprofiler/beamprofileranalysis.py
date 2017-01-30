@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import scipy.optimize as opt
 
 import glob
-
+import time
 
 
 def gaussian2D(xy_meshgrid,x0,y0,sigx,sigy,amp,const,theta=0):
@@ -195,8 +195,10 @@ def getroi(data,Nsig=4):
 
 def flattenrgb(im, bits=8, satlim=0.001):
     '''
-    Flattens rbg array, excluding saturadted channels
+    Flattens rbg array, excluding saturated channels
     '''
+
+    sat_det = np.zeros(im.shape[2])
     
     Nnnz = np.zeros(im.shape[2])
     Nsat = np.zeros(im.shape[2])
@@ -209,8 +211,11 @@ def flattenrgb(im, bits=8, satlim=0.001):
         
         if Nsat[i]/Nnnz[i] <= satlim:
             data += im[:,:,i]
+        else:
+            sat_det[i] = 1
 
-    return data
+
+    return data, sat_det
     
 
 def d4sigma(data, xy):
@@ -243,7 +248,7 @@ End of definitions
 BITS = 8       #image channel intensity resolution
 SAT = [0,0,0]  #channel saturation detection
 SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
-PIXSIZE = 1.4;  #pixel size in um, assumed square
+PIXSIZE = 1.74;  #pixel size in um, measured
 
 
 filedir = '2016-07-29 testdata'
@@ -255,11 +260,14 @@ beam_stats = []
 for f in files:
     
     im = plt.imread(f)
-    data = flattenrgb(im, BITS, SATLIM)
-    
+    data, SAT = flattenrgb(im, BITS, SATLIM)
+    #SAT is 1x3 array (RGB), value True (1) means RGB channel was saturated
+    #will implement a check here later
+
     data = data.astype(float)
 
-    data_full = data    
+    data_full = data
+   
     data = getroi(data)
 
     x = np.arange(data.shape[1])*PIXSIZE
