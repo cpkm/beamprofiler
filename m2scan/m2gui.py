@@ -12,20 +12,20 @@ import cv2
 import matplotlib.pyplot as plt
 import threading
 import time
+import tkinter as tk
 
-from tkinter import *
 from tkinter.filedialog import asksaveasfilename
 from PIL import Image, ImageTk
 
 
-class Application(Tk):
+class Application(tk.Tk):
     """ GUI app to aid in the collection of beam profile data"""
     
     def __init__(self, master=None):
         """Initialize frame"""
-        root = self.root = Tk.__init__(self,master)
+        self.root = tk.Tk.__init__(self,master)
         
-        self.geometry('425x350')
+        self.geometry('475x375')
         self.protocol("WM_DELETE_WINDOW", self.onClose)
         
         self.grid()
@@ -35,59 +35,77 @@ class Application(Tk):
     def createWidgets(self):
         """Create button, text, entry widgets"""
         
-        self.camSelectLabel = Label(self, text = 'Select camera:')
-        self.camSelectLabel.grid(row = 0, column = 0, columnspan = 1, sticky = W)
+        self.camSelectLabel = tk.Label(self, text = 'Select camera:')
+        self.camSelectLabel.grid(row = 0, column = 0, columnspan = 1, sticky = 'W')
         
-        self.cameraName = StringVar()
+        self.cameraName = tk.StringVar()
         self.cameraName.set('-Select-')
         camera_list = self.getCameras()
         
-        self.camSelect = OptionMenu(self, self.cameraName, *camera_list)
-        self.camSelect.grid(row = 0, column = 1, columnspan = 1, sticky = W)        
+        self.camSelect = tk.OptionMenu(self, self.cameraName, *camera_list)
+        self.camSelect.grid(row = 0, column = 1, columnspan = 1, sticky = 'W')        
         
-        self.imgAvLabel = Label(self, text = 'Image to average: ')
-        self.imgAvLabel.grid(row=0, column=2, sticky = W)
+        self.imgAvLabel = tk.Label(self, text = 'Image to average: ')
+        self.imgAvLabel.grid(row=0, column=2, sticky = 'W')
         
-        self.imgAvNum = StringVar()
+        self.imgAvNum = tk.StringVar()
         self.imgAvNum.set('10')        
         
-        self.imgAvEntry = Entry(self, textvariable = self.imgAvNum)
-        self.imgAvEntry.grid(row=0, column=3, columnspan=1, sticky = W)
+        self.imgAvEntry = tk.Entry(self, textvariable = self.imgAvNum, width=10)
+        self.imgAvEntry.grid(row=0, column=3, columnspan=1, sticky = 'W')
         
-        self.saveLabel = Label(self, text = 'Save location:')
-        self.saveLabel.grid(row = 1, column = 0, columnspan = 1, sticky = W)
+        self.saveLabel = tk.Label(self, text = 'Save location:')
+        self.saveLabel.grid(row = 1, column = 0, columnspan = 1, sticky = 'W')
         
-        self.saveDir = StringVar()
+        self.saveDir = tk.StringVar()
         #home = os.path.expanduser("~")
         #self.saveDir.set(os.path.join(home, 'default_image'))
-        self.saveDir.set('default_image')
+        self.saveDir.set(os.path.join('default_image','default_image'))
         
-        self.saveDirBox = Entry(self, textvariable = self.saveDir)
-        self.saveDirBox.grid(row=1, column=1, columnspan = 2, sticky=W)
+        self.saveDirBox = tk.Entry(self, textvariable = self.saveDir)
+        self.saveDirBox.grid(row=1, column=1, columnspan = 2, sticky = 'W')
         
-        self.browseButton = Button(self, text = 'Browse', command = self.browseDir)
-        self.browseButton.grid(row = 1, column = 3, columnspan = 1, sticky = W)
+        self.browseButton = tk.Button(self, text = 'Browse', command = self.browseDir)
+        self.browseButton.grid(row = 1, column = 3, columnspan = 1, sticky = 'W')
                 
-        self.capture = Button(self, text='Capture', command = self.onCapture)
-        self.capture.grid(row=2,column=0, sticky = W)
+        self.capture = tk.Button(self, text='Capture', command = self.onCapture)
+        self.capture.grid(row=2,column=0, sticky = 'W')
         
-        self.startPreviewButton = Button(self, text='Start Preview', command = self.startPreview)
-        self.startPreviewButton.grid(row=2,column=1, sticky = W)
+        self.startPreviewButton = tk.Button(self, text='Start Preview', command = self.startPreview)
+        self.startPreviewButton.grid(row=2,column=1, sticky = 'W')
 
-        self.stopPreviewButton = Button(self, text='Stop Preview', command = self.stopPreview)
-        self.stopPreviewButton.grid(row=2,column=2, sticky = W)
+        self.stopPreviewButton = tk.Button(self, text='Stop Preview', command = self.stopPreview)
+        self.stopPreviewButton.grid(row=2,column=2, sticky = 'W')
+
+        #the next bit is for sensor saturation detection... not implemented yet
+        self.resolutionText = tk.Label(self, text = 'Sensor resolution:')
+        self.resolutionText.grid(row=3, column=0, columnspan=1, sticky='W')
+
+        self.sensorRes = tk.DoubleVar()
+        self.sensorRes.set(8)
+        sensorList = np.array([8,10,12,14,16])
+        self.resolutionMenu = tk.OptionMenu(self, self.sensorRes,*sensorList)
+        self.resolutionMenu.grid(row=3, column=1, sticky='W')
+        
+        self.rSat = tk.Label(self, bg = 'red', width = 5)
+        self.rSat.grid(row=3, column=2, columnspan=2, sticky='W')
+        self.gSat = tk.Label(self, bg = 'green', width = 5)
+        self.gSat.grid(row=3, column=2, columnspan=2)
+        self.bSat = tk.Label(self, bg = 'blue', width = 5)
+        self.bSat.grid(row=3, column=2, columnspan=2, sticky='E')
+        #end of sensor saturation detection
 
         self.imgQueue = qu.Queue(maxsize=1000)        
         
         img = None
-        self.previewPanel = Label(self, image = img)
+        self.previewPanel = tk.Label(self, image = img)
         self.previewPanel.image = img
-        self.previewPanel.grid(row=3, column=0, columnspan=4, sticky = W)
+        self.previewPanel.grid(row=4, column=0, columnspan=4, sticky = 'W')
         
-        self.statusText = StringVar()
+        self.statusText = tk.StringVar()
         self.statusText.set('')
-        self.statusBar = Label(self, textvariable = self.statusText)
-        self.statusBar.grid(row=4, column=0, columnspan=4, sticky = W)
+        self.statusBar = tk.Label(self, textvariable = self.statusText)
+        self.statusBar.grid(row=5, column=0, columnspan=4, sticky = 'W')
     
     '''    
     def checkQueue(self):
@@ -109,8 +127,11 @@ class Application(Tk):
         try:        
             self.stopPreview()   
         except:
-            print('Could not stop everything, destroying...')
-                
+            try:
+                print('Could not stop everything, destroying...')
+            except:
+                pass
+                    
         self.destroy()
         
     
@@ -159,6 +180,8 @@ class Application(Tk):
         img = Image.fromarray(np.uint8(im*255))
         
         j = 0
+        if not os.path.exists(os.path.dirname(self.saveDir.get())):
+            os.makedirs(os.path.dirname(self.saveDir.get()))
         while os.path.exists(self.saveDir.get() + '%03d.jpeg' % j):
             j += 1
         filename = self.saveDir.get() + '%03d.jpeg' % j
