@@ -58,8 +58,9 @@ class Application(Tk):
         self.saveLabel.grid(row = 1, column = 0, columnspan = 1, sticky = W)
         
         self.saveDir = StringVar()
-        home = os.path.expanduser("~")
-        self.saveDir.set(os.path.join(home, 'default_image'))
+        #home = os.path.expanduser("~")
+        #self.saveDir.set(os.path.join(home, 'default_image'))
+        self.saveDir.set('default_image')
         
         self.saveDirBox = Entry(self, textvariable = self.saveDir)
         self.saveDirBox.grid(row=1, column=1, columnspan = 2, sticky=W)
@@ -82,6 +83,11 @@ class Application(Tk):
         self.previewPanel = Label(self, image = img)
         self.previewPanel.image = img
         self.previewPanel.grid(row=3, column=0, columnspan=4, sticky = W)
+        
+        self.statusText = StringVar()
+        self.statusText.set('')
+        self.statusBar = Label(self, textvariable = self.statusText)
+        self.statusBar.grid(row=4, column=0, columnspan=4, sticky = W)
     
     '''    
     def checkQueue(self):
@@ -97,7 +103,7 @@ class Application(Tk):
       if not self.stopEvent.is_set():
           self.after_idle(self.checkQueue)
     '''
-      
+
     def onClose(self):
         '''what to do when window is closed'''
         try:        
@@ -114,7 +120,7 @@ class Application(Tk):
         t0 = time.time()
 
         self.stopPreview()
-        print('Stopped Preview')
+        self.statusText.set('Stopped Preview')
 
         w = 1280
         h = 720        
@@ -123,6 +129,8 @@ class Application(Tk):
         cap.set(3,w)
         cap.set(4,h)
 
+        print(time.time()-t0)
+        
         FRAMES_AVG = np.int(self.imgAvNum.get())
 
         i = 0
@@ -143,7 +151,9 @@ class Application(Tk):
 
 
         cap.release()
-        print('Image captured')
+        #print('Image captured')
+        print(time.time()-t0)
+        self.startPreview()
 
         im[:,:,[0,1,2]] = im[:,:,[2,1,0]]
         img = Image.fromarray(np.uint8(im*255))
@@ -153,13 +163,12 @@ class Application(Tk):
             j += 1
         filename = self.saveDir.get() + '%03d.jpeg' % j
         img.save(filename) #this depends on what I use to get the image
-        print('Image saved')
+        #print('Image saved')
         
-        self.stopPreview() 
-        self.startPreview()
+        #self.stopPreview() 
+        #self.startPreview()
 
-        t1 = time.time()
-        print(t1-t0)
+        print(time.time()-t0)
         
         
     def startPreview(self):
@@ -178,7 +187,7 @@ class Application(Tk):
         self.cam.set(4, h)
         
         self.thread.start()
-        print('Preview started')
+        self.statusText.set('Preview started')
         
         #self.after(20, self.checkQueue)
 
@@ -186,12 +195,12 @@ class Application(Tk):
         
         try:
             self.stopEvent.set()
-            print('Set thread stop signal')
+            self.statusText.set('Set thread stop signal')
             self.cam.release()
-            print('Released camera')
+            self.statusText.set('Released camera')
             self.previewPanel.configure(image = None)
             self.previewPanel.image = None
-            print('Removed preview image')
+            self.statusText.set('Removed preview image')
 
         except:
             raise
