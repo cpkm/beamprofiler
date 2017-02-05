@@ -147,6 +147,7 @@ class Application(tk.Tk):
         h = 720        
         
         cap = cv2.VideoCapture(np.int(self.cameraName.get()))
+        #set image width, height
         cap.set(3,w)
         cap.set(4,h)
 
