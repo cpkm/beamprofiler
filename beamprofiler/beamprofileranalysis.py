@@ -17,7 +17,9 @@ import matplotlib.pyplot as plt
 import scipy.optimize as opt
 
 import glob
+import time
 
+def stop(s = 'error'): raise Exception(s)
 
 
 def gaussian2D(xy_meshgrid,x0,y0,sigx,sigy,amp,const,theta=0):
@@ -126,7 +128,7 @@ def gaussianbeamwaist(z,z0,w0,M2=1,const=0,wl=1.030):
     z = 1000*np.asarray(z).astype(float)
     z0 = 1000*z0
  
-    w = (w0**2 + M2**2*(wl/(np.pi*w0))**2*(z-z0)**2)**(1/2) +const
+    w = (w0**2 + M2**2*(wl/(np.pi*w0))**2*(z-z0)**2)**(1/2) + const
 
     return w
 
@@ -138,7 +140,7 @@ def fitM2(wz,z):
     
     p0 = [z0,w0,1,const]
     
-    limits = ([0,-np.inf,1,-np.inf], np.inf)
+    limits = ([0,-np.inf,1,-w0/2], [np.inf,np.inf,np.inf,w0/2])
         
     popt,pcov = opt.curve_fit(gaussianbeamwaist,z,wz,p0,bounds=limits)
     
@@ -195,8 +197,10 @@ def getroi(data,Nsig=4):
 
 def flattenrgb(im, bits=8, satlim=0.001):
     '''
-    Flattens rbg array, excluding saturadted channels
+    Flattens rbg array, excluding saturated channels
     '''
+
+    sat_det = np.zeros(im.shape[2])
     
     Nnnz = np.zeros(im.shape[2])
     Nsat = np.zeros(im.shape[2])
@@ -209,8 +213,11 @@ def flattenrgb(im, bits=8, satlim=0.001):
         
         if Nsat[i]/Nnnz[i] <= satlim:
             data += im[:,:,i]
+        else:
+            sat_det[i] = 1
 
-    return data
+
+    return data, sat_det
     
 
 def d4sigma(data, xy):
@@ -243,70 +250,80 @@ End of definitions
 BITS = 8       #image channel intensity resolution
 SAT = [0,0,0]  #channel saturation detection
 SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
-PIXSIZE = 1.4;  #pixel size in um, assumed square
+PIXSIZE = 1.74;  #pixel size in um, measured
 
 
 filedir = '2016-07-29 testdata'
-files = glob.glob(filedir+'/*.jpg')
+files = glob.glob(filedir+'/*.jpeg')
 
-beam_parameters = []
+# Consistency check, raises error if failure
+if not files:
+    stop('No files found... try again, but be better')
+
+try:
+    z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
+    z = 2*z
+except (AttributeError, FileNotFoundError):
+    stop('No position file found --> best be named "position.txt"')
+    
+if np.size(files) is not np.size(z):
+    stop('# of images does not match positions - fix ASAP')
+    
+
+#output parameters
 beam_stats = []
 
 for f in files:
     
     im = plt.imread(f)
-    data = flattenrgb(im, BITS, SATLIM)
-    
-    data = data.astype(float)
+    data, SAT = flattenrgb(im, BITS, SATLIM)
+    #SAT is 1x3 array (RGB), value True (1) means RGB channel was saturated
+    #will implement a check here later
 
-    data_full = data    
-    data = getroi(data)
+    data = getroi(data.astype(float))
 
     x = np.arange(data.shape[1])*PIXSIZE
     y = np.arange(data.shape[0])*PIXSIZE
     x,y = np.meshgrid(x,y)
 
-    popt, pcov = fitgaussian2D(data, (x,y),1)
     d4stats = d4sigma(data, (x,y))
-               
-    beam_parameters += [popt] 
+
     beam_stats += [d4stats]
     
-beam_parameters = np.asarray(beam_parameters)
 beam_stats = np.asarray(beam_stats)
 
-wx = 2*beam_parameters[:,2]
-wy = 2*beam_parameters[:,3]
+#x and y beam widths
 d2x = (1/2)*beam_stats[:,2]
 d2y = (1/2)*beam_stats[:,3]
 
-z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
-z = 2*z
-
+#fit to gaussian mode curve
 poptx, pcovx = fitM2(d2x,z)
 popty, pcovy = fitM2(d2y,z)
 
-plt.plot(z,d2x)
-plt.plot(z,d2y)
-plt.plot(z,gaussianbeamwaist(z,*poptx))
-plt.plot(z,gaussianbeamwaist(z,*popty))
+#obtain 'focus image'
+focus_number = np.argmin(np.abs(poptx[0]-z))
 
+im = plt.imread(files[focus_number])
+data, SAT = flattenrgb(im, BITS, SATLIM)
+data = getroi(data.astype(float))
 
-'''
-    #plot orig
-    #fig1, ax1 = plt.subplots(1,1)
-    #ax1.imshow(im)
-    
-    #plot result
-    data_fitted = gaussian2D((x,y), *popt)
+x = np.arange(data.shape[1])*PIXSIZE - beam_stats[focus_number,2]
+y = np.arange(data.shape[0])*PIXSIZE - beam_stats[focus_number,3]
 
-    fig, ax = plt.subplots(1, 1)
-    ax.hold(True)
-    ax.imshow(data, cmap=plt.cm.jet, origin='bottom',
-        extent=(x.min(), x.max(), y.min(), y.max()))
-    ax.contour(x, y, data_fitted.reshape(data.shape), 10, colors='w')
-    plt.show()   
-'''
+#plot profile fitresults
+fig1, ax1 = plt.subplots(1, 1)
+ax1.plot(z,d2x,'bx')
+ax1.plot(z,d2y,'go')
+ax1.plot(z,gaussianbeamwaist(z,*poptx),'b')
+ax1.plot(z,gaussianbeamwaist(z,*popty),'g')
+
+#plot image of focussed beam profile
+fig2, ax2 = plt.subplots(1, 1)
+ax2.imshow(data, cmap=plt.cm.nipy_spectral, origin='lower', interpolation='bilinear',
+    extent=(x.min(), x.max(), y.min(), y.max()))
+#ax2.contour(data, cmap=plt.cm.plasma, origin='lower', extent=(x.min(), x.max(), y.min(), y.max()))
+plt.show()   
+
 
 
 
