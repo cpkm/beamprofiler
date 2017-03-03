@@ -258,7 +258,7 @@ class Application(tk.Tk):
                     # Display the resulting frame
                     #cv2.imshow(WINDOW_NAME,frame_sized)
                 
-                    frame_sized = cv2.cvtColor(frame_sized,cv2.COLOR_BGR2RGBA)
+                    frame_sized = cv2.cvtColor(frame_sized,cv2.COLOR_BGR2RGB)
                     image = Image.fromarray(frame_sized)
                     img = ImageTk.PhotoImage(image)
                     
@@ -266,7 +266,9 @@ class Application(tk.Tk):
                     #self.after(20, self.videoLoop)
                     
                     self.previewPanel.configure(image = img)
-                    self.previewPanel.image = img 
+                    self.previewPanel.image = img
+                    #print(frame.shape)
+                    print(self.checkChannelSat(frame_sized))
                 
                 #self.previewPanel.after(10, self.videoLoop)
                 
@@ -304,6 +306,26 @@ class Application(tk.Tk):
         '''select save directory'''
         directory = asksaveasfilename()
         self.saveDir.set(directory)
+        
+    
+    def checkChannelSat(self,im):
+        '''
+        check preview image channel satursation
+        '''
+        bits = 8
+        satlim = 0.001
+        sat_det = np.zeros(im.shape[2])
+        
+        for ind,chnl in enumerate(sat_det):
+        
+            sat_ratio = (im[:,:,ind] >= 2**bits-1).sum()/(im[:,:,ind] != 0).sum()
+        
+            if sat_ratio <= satlim:
+                chnl = 0
+            else:
+                chnl = 1
+                
+        return sat_det
         
         
 '''
