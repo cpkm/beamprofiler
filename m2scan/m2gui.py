@@ -319,13 +319,13 @@ class Application(tk.Tk):
         '''
         check preview image channel satursation
         '''
-        bits = 8
+        bits = self.sensorRes.get()
         satlim = 0.001
         sat_det = np.zeros(im.shape[2])
         
         for ind,_ in enumerate(sat_det):
         
-            sat_ratio = (im[:,:,ind] >= 2**bits-1).sum()/(im[:,:,ind] != 0).sum()
+            sat_ratio = (im[:,:,ind] >= 2**bits-1).sum()/((im[:,:,ind] != 0).sum()+1)
 
             if sat_ratio <= satlim:
                 sat_det[ind] = 0
