@@ -88,12 +88,15 @@ class Application(tk.Tk):
         self.resolutionMenu = tk.OptionMenu(self, self.sensorRes,*sensorList)
         self.resolutionMenu.grid(row=3, column=1, sticky='W')
         
-        self.rSat = tk.Label(self, bg='red', text='R', relief='raised', width = 5)
+        self.rSat = tk.Label(self, text='R', relief='raised', width = 5)
         self.rSat.grid(row=3, column=2, columnspan=2, sticky='W')
-        self.gSat = tk.Label(self, bg = 'green', text='G', relief='raised', width = 5)
+        self.gSat = tk.Label(self, text='G', relief='raised', width = 5)
         self.gSat.grid(row=3, column=2, columnspan=2)
-        self.bSat = tk.Label(self, bg = 'blue', text='B', relief='raised', width = 5)
+        self.bSat = tk.Label(self, text='B', relief='raised', width = 5)
         self.bSat.grid(row=3, column=2, columnspan=2, sticky='E')
+        
+        self.bgColor = self.rSat.cget('bg')
+        
         #end of sensor saturation detection
 
         self.imgQueue = qu.Queue(maxsize=100)        
@@ -271,7 +274,8 @@ class Application(tk.Tk):
                     self.previewPanel.configure(image = img)
                     self.previewPanel.image = img
                     #print(frame.shape)
-                    print(self.checkChannelSat(frame_sized))
+                    sat_det = self.checkChannelSat(frame_sized)
+                    self.setChannelSat(sat_det)
                 
                 #self.previewPanel.after(10, self.videoLoop)
                 
@@ -319,16 +323,34 @@ class Application(tk.Tk):
         satlim = 0.001
         sat_det = np.zeros(im.shape[2])
         
-        for ind,chnl in enumerate(sat_det):
+        for ind,_ in enumerate(sat_det):
         
             sat_ratio = (im[:,:,ind] >= 2**bits-1).sum()/(im[:,:,ind] != 0).sum()
-        
+
             if sat_ratio <= satlim:
-                chnl = 0
+                sat_det[ind] = 0
             else:
-                chnl = 1
+                sat_det[ind] = 1
                 
         return sat_det
+    
+    
+    def setChannelSat(self, sat_det):
+        '''
+        set appropriate rgb indicator label for saturation
+        sat_det is 1x3 boolean, 0=not sat, 1=sat
+        '''
+        
+        channels = [self.rSat, self.gSat, self.bSat]
+        cols = ['red', 'green', 'blue']
+
+        for ind, ch in enumerate(channels):
+            if sat_det[ind]:
+                ch.configure(bg=cols[ind])
+            else:
+                ch.configure(bg=self.bgColor)
+                
+            
         
         
 '''
