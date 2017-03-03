@@ -158,9 +158,10 @@ class Application(tk.Tk):
         i = 0
         while i<FRAMES_AVG:
             # Capture frame-by-frame
+            print(time.time()-t0)
             ret, frame = cap.read()
-    
-            if frame is not None:
+            print(time.time()-t0)
+            if ret:
                 if i == 0:
                     #first frame
                     im = frame.astype(float)/255
@@ -168,6 +169,7 @@ class Application(tk.Tk):
                 else:
                     #average subsequent frames
                     im = (i*im + frame.astype(float)/255)/(i+1)
+            print(time.time()-t0)
 
             i += 1
 
