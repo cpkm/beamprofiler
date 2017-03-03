@@ -43,7 +43,8 @@ class Application(tk.Tk):
         camera_list = self.getCameras()
         
         self.camSelect = tk.OptionMenu(self, self.cameraName, *camera_list)
-        self.camSelect.grid(row = 0, column = 1, columnspan = 1, sticky = 'W')        
+        self.camSelect.config(width=8)
+        self.camSelect.grid(row = 0, column = 1, columnspan = 1, sticky = 'EW')        
         
         self.imgAvLabel = tk.Label(self, text = 'Image to average: ')
         self.imgAvLabel.grid(row=0, column=2, sticky = 'W')
@@ -87,15 +88,15 @@ class Application(tk.Tk):
         self.resolutionMenu = tk.OptionMenu(self, self.sensorRes,*sensorList)
         self.resolutionMenu.grid(row=3, column=1, sticky='W')
         
-        self.rSat = tk.Label(self, bg = 'red', width = 5)
+        self.rSat = tk.Label(self, bg='red', text='R', relief='raised', width = 5)
         self.rSat.grid(row=3, column=2, columnspan=2, sticky='W')
-        self.gSat = tk.Label(self, bg = 'green', width = 5)
+        self.gSat = tk.Label(self, bg = 'green', text='G', relief='raised', width = 5)
         self.gSat.grid(row=3, column=2, columnspan=2)
-        self.bSat = tk.Label(self, bg = 'blue', width = 5)
+        self.bSat = tk.Label(self, bg = 'blue', text='B', relief='raised', width = 5)
         self.bSat.grid(row=3, column=2, columnspan=2, sticky='E')
         #end of sensor saturation detection
 
-        self.imgQueue = qu.Queue(maxsize=1000)        
+        self.imgQueue = qu.Queue(maxsize=100)        
         
         img = None
         self.previewPanel = tk.Label(self, image = img)
@@ -127,10 +128,7 @@ class Application(tk.Tk):
         try:        
             self.stopPreview()   
         except:
-            try:
-                print('Could not stop everything, destroying...')
-            except:
-                pass
+            pass
                     
         self.destroy()
         
@@ -141,7 +139,6 @@ class Application(tk.Tk):
         t0 = time.time()
 
         self.stopPreview()
-        self.statusText.set('Stopped Preview')
 
         w = 1280
         h = 720        
@@ -151,15 +148,22 @@ class Application(tk.Tk):
         cap.set(3,w)
         cap.set(4,h)
 
-        print(time.time()-t0)
+
         
         FRAMES_AVG = np.int(self.imgAvNum.get())
 
         i = 0
+        im=np.zeros((h,w,3))
+        
+        t1 = time.time()
+        print(t1-t0)
+        
         while i<FRAMES_AVG:
             # Capture frame-by-frame
             ret, frame = cap.read()
     
+            im = (i*im + frame.astype(float)/255)/(i+1)
+            '''
             if frame is not None:
                 if i == 0:
                     #first frame
@@ -168,13 +172,17 @@ class Application(tk.Tk):
                 else:
                     #average subsequent frames
                     im = (i*im + frame.astype(float)/255)/(i+1)
+            '''
 
             i += 1
 
 
         cap.release()
+        self.statusText.set('Image captured')
         #print('Image captured')
-        print(time.time()-t0)
+        t2 = time.time()
+        print(t2-t0, t2-t1)
+        
         self.startPreview()
 
         im[:,:,[0,1,2]] = im[:,:,[2,1,0]]
@@ -192,7 +200,9 @@ class Application(tk.Tk):
         #self.stopPreview() 
         #self.startPreview()
 
-        print(time.time()-t0)
+        t3 = time.time()
+        print(t3-t0, t3-t2)
+        self.statusText.set('Image saved')
         
         
     def startPreview(self):
@@ -219,12 +229,13 @@ class Application(tk.Tk):
         
         try:
             self.stopEvent.set()
-            self.statusText.set('Set thread stop signal')
+            #self.statusText.set('Set thread stop signal')
             self.cam.release()
-            self.statusText.set('Released camera')
+            #self.statusText.set('Released camera')
             self.previewPanel.configure(image = None)
             self.previewPanel.image = None
-            self.statusText.set('Removed preview image')
+            #self.statusText.set('Removed preview image')
+            self.statusText.set('Stopped Preview')
 
         except:
             raise
