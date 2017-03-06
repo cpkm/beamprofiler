@@ -12,8 +12,9 @@ w0 = 2*sigma (sigma normal definition in gaussian)
 """
 
 import numpy as np
-import scipy as sp
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.gridspec import GridSpec
 import scipy.optimize as opt
 
 import glob
@@ -224,13 +225,17 @@ def d4sigma(data, xy):
     
     '''
     calculate D4sigma of beam
+    x,y,data all same size
+    A is normalization factor
+    returns averages and d4sig in x and y
+    x and y directions are orientation of image. no adjustment
     '''
     
     x = xy[0]
     y = xy[1]
     
     dx,dy = np.meshgrid(np.gradient(x[0]),np.gradient(y[:,0]))
-    
+
     A = np.sum(data*dx*dy)
     
     avgx = np.sum(data*x*dx*dy)/A
@@ -242,19 +247,34 @@ def d4sigma(data, xy):
     return np.array([avgx, avgy, d4sigmax, d4sigmay])
     
 
+def normalize(data, offset=0):
+    '''
+    normalize a dataset
+    data is array or matrix to be normalized
+    offset = (optional) constant offset
+    '''
+    
+    return (data-data.min())/(data.max()-data.min()) + offset
+    
+
+
+def make_ticklabels_invisible(axes):
+    for ax in axes:
+        for tl in ax.get_xticklabels() + ax.get_yticklabels():
+            tl.set_visible(False)
+    
 '''
 End of definitions
 '''    
 
 
 BITS = 8       #image channel intensity resolution
-SAT = [0,0,0]  #channel saturation detection
 SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
 PIXSIZE = 1.74;  #pixel size in um, measured
 
 
 filedir = '2016-07-29 testdata'
-files = glob.glob(filedir+'/*.jpeg')
+files = glob.glob(filedir+'/*.jp*g')
 
 # Consistency check, raises error if failure
 if not files:
@@ -272,15 +292,15 @@ if np.size(files) is not np.size(z):
 
 #output parameters
 beam_stats = []
+chl_sat = []
 
 for f in files:
     
     im = plt.imread(f)
-    data, SAT = flattenrgb(im, BITS, SATLIM)
+    data, sat = flattenrgb(im, BITS, SATLIM)
     #SAT is 1x3 array (RGB), value True (1) means RGB channel was saturated
-    #will implement a check here later
 
-    data = getroi(data.astype(float))
+    data = normalize(getroi(data.astype(float)))
 
     x = np.arange(data.shape[1])*PIXSIZE
     y = np.arange(data.shape[0])*PIXSIZE
@@ -289,8 +309,10 @@ for f in files:
     d4stats = d4sigma(data, (x,y))
 
     beam_stats += [d4stats]
+    chl_sat += [sat]
     
 beam_stats = np.asarray(beam_stats)
+chl_sat = np.asarray(chl_sat)
 
 #x and y beam widths
 d2x = (1/2)*beam_stats[:,2]
@@ -305,11 +327,14 @@ focus_number = np.argmin(np.abs(poptx[0]-z))
 
 im = plt.imread(files[focus_number])
 data, SAT = flattenrgb(im, BITS, SATLIM)
-data = getroi(data.astype(float))
+data = normalize(getroi(data.astype(float)))
 
-x = np.arange(data.shape[1])*PIXSIZE - beam_stats[focus_number,2]
-y = np.arange(data.shape[0])*PIXSIZE - beam_stats[focus_number,3]
+x = np.arange(data.shape[1])*PIXSIZE - beam_stats[focus_number,0]
+y = np.arange(data.shape[0])*PIXSIZE - beam_stats[focus_number,1]
+X,Y = np.meshgrid(x,y)
 
+
+'''
 #plot profile fitresults
 fig1, ax1 = plt.subplots(1, 1)
 ax1.plot(z,d2x,'bx')
@@ -319,13 +344,47 @@ ax1.plot(z,gaussianbeamwaist(z,*popty),'g')
 
 #plot image of focussed beam profile
 fig2, ax2 = plt.subplots(1, 1)
-ax2.imshow(data, cmap=plt.cm.nipy_spectral, origin='lower', interpolation='bilinear',
+ax2.imshow(data, cmap=plt.cm.plasma, origin='lower', interpolation='bilinear',
     extent=(x.min(), x.max(), y.min(), y.max()))
-#ax2.contour(data, cmap=plt.cm.plasma, origin='lower', extent=(x.min(), x.max(), y.min(), y.max()))
+contours = data.max()*(np.exp(-np.array([2,1.5,1,0.5])**2/2))
+widths = np.array([1,0.5,1,0.5])
+CS = ax2.contour(data, contours, colors = 'k', linewidths = widths, origin='lower', interpolation='bilinear', extent=(x.min(), x.max(), y.min(), y.max()))
+
+ax2.plot(x, (1/4)*(y.max()-y.min())*np.sum(data,0)/np.sum(data,0).max() + y.min(), 'w')
+ax2.plot((1/4)*(x.max()-x.min())*np.sum(data,1)/np.sum(data,1).max() + x.min(), y, 'w')
 plt.show()   
+'''
+plot_grid = [3,6]
+plot_w = 10
+asp_ratio = plot_grid[0]/plot_grid[1]
+plot_h = plot_w*asp_ratio
 
 
+fig = plt.figure(figsize=(plot_w,plot_h))
+gs = GridSpec(plot_grid[0], plot_grid[1])
+ax1 = plt.subplot(gs[:2, 0])
+# identical to ax1 = plt.subplot(gs.new_subplotspec((0,0), colspan=3))
+ax2 = plt.subplot(gs[:2,1:3])
+ax3 = plt.subplot(gs[:, 3:], projection='3d')
+ax4 = plt.subplot(gs[2,1:3])
 
+make_ticklabels_invisible([ax2])
+
+ax2.imshow(data, cmap=plt.cm.plasma, origin='lower', interpolation='bilinear',
+    extent=(x.min(), x.max(), y.min(), y.max()))
+contours = data.max()*(np.exp(-np.array([2,1.5,1])**2/2))
+widths = np.array([0.5,0.25,0.5])
+CS = ax2.contour(data, contours, colors = 'k', linewidths = widths, origin='lower', interpolation='bilinear', extent=(x.min(), x.max(), y.min(), y.max()))
+
+ax4.plot(x, normalize(np.sum(data,0)), 'k')
+ax4.set_xlabel('x (um)')
+
+ax1.plot(normalize(np.sum(data,1)), y, 'k')
+ax1.set_ylabel('y (um)')
+
+ax3.plot_surface(X,Y,data, cmap=plt.cm.plasma)
+ax3.set_ylabel('y (um)')
+ax3.set_xlabel('x (um)')
 
 
 
