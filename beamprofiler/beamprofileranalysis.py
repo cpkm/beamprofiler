@@ -360,14 +360,17 @@ asp_ratio = plot_grid[0]/plot_grid[1]
 plot_h = plot_w*asp_ratio
 
 
-fig = plt.figure(figsize=(plot_w,plot_h))
+fig = plt.figure(figsize=(plot_w,plot_h), facecolor='w')
 gs = GridSpec(plot_grid[0], plot_grid[1])
 ax1 = plt.subplot(gs[:2, 0])
 # identical to ax1 = plt.subplot(gs.new_subplotspec((0,0), colspan=3))
 ax2 = plt.subplot(gs[:2,1:3])
-ax3 = plt.subplot(gs[:, 3:], projection='3d')
+ax3 = plt.subplot(gs[:2, 3:], projection='3d')
 ax4 = plt.subplot(gs[2,1:3])
+ax5 = plt.subplot(gs[2,3:])
+ax6 = plt.subplot(gs[-1,0])
 
+ax6.axis('off')
 make_ticklabels_invisible([ax2])
 
 ax2.imshow(data, cmap=plt.cm.plasma, origin='lower', interpolation='bilinear',
@@ -385,6 +388,18 @@ ax1.set_ylabel('y (um)')
 ax3.plot_surface(X,Y,data, cmap=plt.cm.plasma)
 ax3.set_ylabel('y (um)')
 ax3.set_xlabel('x (um)')
+
+ax5.plot(z,d2x,'bx',markerfacecolor='none')
+ax5.plot(z,d2y,'g+',markerfacecolor='none')
+ax5.plot(z,gaussianbeamwaist(z,*poptx),'b', label='X')
+ax5.plot(z,gaussianbeamwaist(z,*popty),'g', label='Y')
+ax5.set_xlabel('z (mm)')
+ax5.set_ylabel('Beam Radius (um)')
+ax5.yaxis.tick_right()
+ax5.yaxis.set_label_position('right')
+ax5.legend(loc=9)
+
+ax6.text(-0.1,0.4,'M2x = %.2f\nM2y = %.2f'%(poptx[2],popty[2]))
 
 
 
