@@ -9,7 +9,11 @@ import os
 import numpy as np
 import queue as qu
 import cv2
-import matplotlib.pyplot as plt
+
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib import pyplot as plt
+
 import threading
 import time
 import tkinter as tk
@@ -25,7 +29,7 @@ class Application(tk.Tk):
         """Initialize frame"""
         self.root = tk.Tk.__init__(self,master)
         
-        self.geometry('475x375')
+        self.geometry('500x400')
         self.protocol("WM_DELETE_WINDOW", self.onClose)
         
         self.grid()
@@ -38,8 +42,9 @@ class Application(tk.Tk):
         self.camSelectLabel = tk.Label(self, text = 'Select camera:')
         self.camSelectLabel.grid(row = 0, column = 0, columnspan = 1, sticky = 'W')
         
+        self.default_camera = '-Select-'
         self.cameraName = tk.StringVar()
-        self.cameraName.set('-Select-')
+        self.cameraName.set(self.default_camera)
         camera_list = self.getCameras()
         
         self.camSelect = tk.OptionMenu(self, self.cameraName, *camera_list)
@@ -64,19 +69,23 @@ class Application(tk.Tk):
         self.saveDir.set(os.path.join('default_image','default_image'))
         
         self.saveDirBox = tk.Entry(self, textvariable = self.saveDir)
-        self.saveDirBox.grid(row=1, column=1, columnspan = 2, sticky = 'W')
+        self.saveDirBox.grid(row=1, column=1, columnspan = 2, sticky='W')
         
-        self.browseButton = tk.Button(self, text = 'Browse', command = self.browseDir)
-        self.browseButton.grid(row = 1, column = 3, columnspan = 1, sticky = 'W')
+        self.browseButton = tk.Button(self, text = 'Browse', command = lambda: self.browseDir(self.saveDir))
+        self.browseButton.grid(row=1, column=3, columnspan=1, sticky='W')
                 
         self.capture = tk.Button(self, text='Capture', command = self.onCapture)
-        self.capture.grid(row=2,column=0, sticky = 'W')
+        self.capture.grid(row=2,column=0, sticky='W')
         
         self.startPreviewButton = tk.Button(self, text='Start Preview', command = self.startPreview)
-        self.startPreviewButton.grid(row=2,column=1, sticky = 'W')
+        self.startPreviewButton.grid(row=2,column=1, sticky='W')
 
         self.stopPreviewButton = tk.Button(self, text='Stop Preview', command = self.stopPreview)
-        self.stopPreviewButton.grid(row=2,column=2, sticky = 'W')
+        self.stopPreviewButton.grid(row=2,column=2, sticky='W')
+
+        self.openBeamPointingButton = tk.Button(self, text='Beam Pointing', command = self.openBeamPointingWindow)
+        self.openBeamPointingButton.grid(row=2, column=3, sticky='W')
+        self.bpw = None
 
         #the next bit is for sensor saturation detection... not implemented yet
         self.resolutionText = tk.Label(self, text = 'Sensor resolution:')
@@ -111,6 +120,67 @@ class Application(tk.Tk):
         self.statusBar = tk.Label(self, textvariable = self.statusText)
         self.statusBar.grid(row=5, column=0, columnspan=4, sticky = 'W')
     
+    def openBeamPointingWindow(self):
+        if self.cameraName.get() == self.default_camera:
+            print('You must first select a camera')
+            return
+
+        if self.bpw is None:
+            self.createBeamPointingWindow()
+        else:
+            print('window already open')
+            return
+
+
+    def createBeamPointingWindow(self):
+        self.bpw = tk.Toplevel(self)
+        self.bpw.geometry('500x400')
+        self.bpw.title('Beam Pointing')
+        self.bpw.protocol('WM_DELETE_WINDOW', self.removeBeamPointingWindow)
+
+        self.bpw.saveLabel = tk.Label(self.bpw, text = 'Save location:')
+        self.bpw.saveLabel.grid(row = 0, column = 0, columnspan = 1, sticky = 'W')
+        
+        self.bpw.saveDir = tk.StringVar()
+        #home = os.path.expanduser("~")
+        #self.saveDir.set(os.path.join(home, 'default_image'))
+        self.bpw.saveDir.set(os.path.join('default_image','default_image'))
+        
+        self.bpw.saveDirBox = tk.Entry(self.bpw, textvariable = self.bpw.saveDir)
+        self.bpw.saveDirBox.grid(row=0, column=1, columnspan = 2, sticky='W')
+
+        self.bpw.browseButton = tk.Button(self.bpw, text = 'Browse', command = lambda: self.browseDir(bpw.saveDir))
+        self.bpw.browseButton.grid(row=0, column=3, columnspan=1, sticky='W')
+
+        self.bpw.startPreviewButton = tk.Button(self.bpw, text='Start Preview', command = self.startBeamPointing)
+        self.bpw.startPreviewButton.grid(row=1,column=0, sticky='W')
+
+        self.bpw.stopPreviewButton = tk.Button(self.bpw, text='Stop Preview', command = self.stopBeamPointing)
+        self.bpw.stopPreviewButton.grid(row=1,column=1, sticky='W')
+
+        img = None
+        self.bpw.previewPanel = tk.Label(self.bpw, image = img)
+        self.bpw.previewPanel.image = img
+        self.bpw.previewPanel.grid(row=4, column=0, columnspan=4, sticky = 'W')
+
+
+    def removeBeamPointingWindow(self):
+        self.bpw.destroy()
+        self.bpw = None
+
+
+    def startBeamPointing(self):
+        '''
+        '''
+        print('start')
+
+    def stopBeamPointing(self):
+        '''
+        '''
+        print('stop')
+
+
+
     '''    
     def checkQueue(self):
         
@@ -309,10 +379,12 @@ class Application(tk.Tk):
             
         return camera_list
         
-    def browseDir(self):
-        '''select save directory'''
+    def browseDir(self, save_object):
+        '''select save directory
+        save_object should be tkinter string variable
+        '''
         directory = asksaveasfilename()
-        self.saveDir.set(directory)
+        save_object.set(directory)
         
     
     def checkChannelSat(self,im):

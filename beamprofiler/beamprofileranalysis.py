@@ -71,9 +71,9 @@ def fitgaussian2D(data, xy_tuple, rot=None):
     fits data to 2D gaussian function
 
     Inputs:
-    	data = 2D array of image data
-    	xy_tuple = x and y data as a tuple. each is a meshgrid
-    	rot = enable rotation, default is None, if anything else rotation is allowed
+        data = 2D array of image data
+        xy_tuple = x and y data as a tuple. each is a meshgrid
+        rot = enable rotation, default is None, if anything else rotation is allowed
     
     Outputs:
         popt, pcov = optimized parameters and covarience matrix
@@ -128,7 +128,7 @@ def gaussianbeamwaist(z,z0,w0,M2=1,const=0,wl=1.030):
     '''
     z = 1000*np.asarray(z).astype(float)
     z0 = 1000*z0
- 
+    
     w = (w0**2 + M2**2*(wl/(np.pi*w0))**2*(z-z0)**2)**(1/2) + const
 
     return w
@@ -143,13 +143,13 @@ def fitM2(wz,z):
     
     limits = ([0,-np.inf,1,-w0/2], [np.inf,np.inf,np.inf,w0/2])
         
-    popt,pcov = opt.curve_fit(gaussianbeamwaist,z,wz,p0,bounds=limits)
+    popt,pcov = opt.curve_fit(gaussianbeamwaist,z,wz,p0,bounds=limits, max_nfev=10000)
     
     return popt,pcov
     
 
 
-def getroi(data,Nsig=4):
+def getroi(data,Nsig=3):
     '''
     Generates a region of interest for a 2D array, based on the varience of the data.
     Cropping box is defined by [left, bottom, width, height]
@@ -216,9 +216,10 @@ def flattenrgb(im, bits=8, satlim=0.001):
             data += im[:,:,i]
         else:
             sat_det[i] = 1
+    
+    output = normalize(data.astype(float))
 
-
-    return data, sat_det
+    return output, sat_det
     
 
 def d4sigma(data, xy):
@@ -262,6 +263,109 @@ def make_ticklabels_invisible(axes):
     for ax in axes:
         for tl in ax.get_xticklabels() + ax.get_yticklabels():
             tl.set_visible(False)
+
+
+def calculate_beamwidths(data):
+    '''
+    data = image matrix
+
+    data,x,y all same dimensions
+    '''
+    error_limit = 0.01
+
+    x = pix2um(np.arange(data.shape[1]))
+    y = pix2um(np.arange(data.shape[0]))
+    x,y = np.meshgrid(x,y)
+
+    errx = 1
+    erry = 1
+    d0x = x.max()
+    d0y = y.max()
+    roi_new = [d0x/2,d0x,d0y/2,d0y]
+    full_data = data
+
+    while any(errx,erry)>error_limit:
+
+        roi = roi_new
+        data = get_roi(full_data,roi)
+        [ax,ay,s2x,s2y,s2xy] = calculate_2D_moments(data)
+        
+        g = np.sign(s2x-s2y)
+        dx = 2*np.sqrt(2)*((s2x+s2y) + g*((s2x+s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
+        dy = 2*np.sqrt(2)*((s2x+s2y) - g*((s2x+s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
+
+        errx = np.abs(dx-d0x)/d0x
+        erry = np.abs(dy-d0y)/d0y
+
+        roi_new = [ax+roi[1]/2,3*dx,ay+roi[3]/2,3*dy]     #[centrex,width,centrey,height] 
+
+
+
+
+
+    return
+
+
+def calculate_2D_moments(data, axes_scale=[1,1]):
+    '''
+    data = 2D data
+    axes_scale = (optional) scaling factor for x and y
+
+    returns first and second moments
+
+    first moments are averages in each direction
+    second moments are variences in x, y and diagonal
+    '''
+    x = axes_scale[0]*(np.arange(data.shape[1]))
+    y = axes_scale[1]*(np.arange(data.shape[0]))
+    dx,dy = np.meshgrid(np.gradient(x),np.gradient(y))
+    x,y = np.meshgrid(x,y)
+
+    A = np.sum(data*dx*dy)
+    
+    #first moments (averages)
+    avgx = np.sum(data*x*dx*dy)/A
+    avgy = np.sum(data*y*dx*dy)/A
+
+    #second moments (~varience)
+    sig2x = np.sum(data*(x-avgx)**2*dx*dy)/A
+    sig2y = np.sum(data*(y-avgy)**2*dx*dy)/A
+    sig2xy = np.sum(data*(x-avgx)*(y-avgy)*dx*dy)/A
+
+    return [avgx,avgy,sig2x,sig2y,sig2xy]
+
+
+def get_roi(data,roi):
+    '''
+    data = 2D data
+    roi = [x0,width,y0,height]
+    '''
+    left = np.int(roi[0] - roi[1]/2)
+    bottom = np.int(roi[2]-roi[3]/2)
+    width = np.int(roi[1])
+    height = np.int(roi[3])
+
+    if left <= 0:
+        width += left
+        left = 0
+
+    if bottom <= 0:
+        height += bottom
+        bottom = 0
+
+    if left+width > data.shape[1]:
+        width = data.shape[1] - left
+
+    if bottom+height > data.shape[0]:
+        height = data.shape[0] - bottom 
+
+    return data[bottom:bottom+height,left:left+width]
+
+
+
+def pix2um(x):
+
+    return x*PIXSIZE
     
 '''
 End of definitions
@@ -270,7 +374,7 @@ End of definitions
 
 BITS = 8       #image channel intensity resolution
 SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
-PIXSIZE = 1.74;  #pixel size in um, measured
+PIXSIZE = 1.74  #pixel size in um, measured
 
 
 filedir = '2016-07-29 testdata'
@@ -300,10 +404,10 @@ for f in files:
     data, sat = flattenrgb(im, BITS, SATLIM)
     #SAT is 1x3 array (RGB), value True (1) means RGB channel was saturated
 
-    data = normalize(getroi(data.astype(float)))
+    data = getroi(data)
 
-    x = np.arange(data.shape[1])*PIXSIZE
-    y = np.arange(data.shape[0])*PIXSIZE
+    x = pix2um(np.arange(data.shape[1]))
+    y = pix2um(np.arange(data.shape[0]))
     x,y = np.meshgrid(x,y)
 
     d4stats = d4sigma(data, (x,y))
@@ -399,8 +503,7 @@ ax5.yaxis.tick_right()
 ax5.yaxis.set_label_position('right')
 ax5.legend(loc=9)
 
-ax6.text(-0.1,0.4,'M2x = %.2f\nM2y = %.2f'%(poptx[2],popty[2]))
+ax6.text(-0.1,0.2,'M2x = %.2f\nM2y = %.2f\nwx = %.2f\nwy = %.2f' %(poptx[2],popty[2],poptx[1],popty[1]))
 
-
-
-    
+print(poptx)
+plt.show()
