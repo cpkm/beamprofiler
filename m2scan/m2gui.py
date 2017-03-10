@@ -12,14 +12,56 @@ import cv2
 
 import matplotlib
 matplotlib.use("TkAgg")
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
 from matplotlib import pyplot as plt
 
 import threading
 import time
+import datetime
 import tkinter as tk
 
 from tkinter.filedialog import asksaveasfilename
 from PIL import Image, ImageTk
+
+
+
+PIXEL_SIZE = 1.74   #pixel size in um
+
+def calculate_2D_moments(data, axes_scale=[1,1], calc_2nd_moments = True):
+    '''
+    data = 2D data
+    axes_scale = (optional) scaling factor for x and y
+
+    returns first and second moments
+
+    first moments are averages in each direction
+    second moments are variences in x, y and diagonal
+    '''
+    x = axes_scale[0]*(np.arange(data.shape[1]))
+    y = axes_scale[1]*(np.arange(data.shape[0]))
+    dx,dy = np.meshgrid(np.gradient(x),np.gradient(y))
+    x,y = np.meshgrid(x,y)
+
+    A = np.sum(data*dx*dy)
+    
+    #first moments (averages)
+    avgx = np.sum(data*x*dx*dy)/A
+    avgy = np.sum(data*y*dx*dy)/A
+
+    if calc_2nd_moments:
+        #second moments (~varience)
+        sig2x = np.sum(data*(x-avgx)**2*dx*dy)/A
+        sig2y = np.sum(data*(y-avgy)**2*dx*dy)/A
+        sig2xy = np.sum(data*(x-avgx)*(y-avgy)*dx*dy)/A
+        
+        return [avgx,avgy,sig2x,sig2y,sig2xy]
+
+    else:
+        return [avgx, avgy]
+
+
 
 
 class Application(tk.Tk):
@@ -77,10 +119,10 @@ class Application(tk.Tk):
         self.capture = tk.Button(self, text='Capture', command = self.onCapture)
         self.capture.grid(row=2,column=0, sticky='W')
         
-        self.startPreviewButton = tk.Button(self, text='Start Preview', command = self.startPreview)
+        self.startPreviewButton = tk.Button(self, text='Start Preview', command = lambda: self.startPreview(self.previewPanel))
         self.startPreviewButton.grid(row=2,column=1, sticky='W')
 
-        self.stopPreviewButton = tk.Button(self, text='Stop Preview', command = self.stopPreview)
+        self.stopPreviewButton = tk.Button(self, text='Stop Preview', command = lambda: self.stopPreview(self.previewPanel))
         self.stopPreviewButton.grid(row=2,column=2, sticky='W')
 
         self.openBeamPointingButton = tk.Button(self, text='Beam Pointing', command = self.openBeamPointingWindow)
@@ -125,6 +167,11 @@ class Application(tk.Tk):
             print('You must first select a camera')
             return
 
+        try:
+            self.stopPreview(self.previewPanel)
+        except:
+            pass    
+
         if self.bpw is None:
             self.createBeamPointingWindow()
         else:
@@ -134,7 +181,7 @@ class Application(tk.Tk):
 
     def createBeamPointingWindow(self):
         self.bpw = tk.Toplevel(self)
-        self.bpw.geometry('500x400')
+        self.bpw.geometry('600x600')
         self.bpw.title('Beam Pointing')
         self.bpw.protocol('WM_DELETE_WINDOW', self.removeBeamPointingWindow)
 
@@ -149,22 +196,61 @@ class Application(tk.Tk):
         self.bpw.saveDirBox = tk.Entry(self.bpw, textvariable = self.bpw.saveDir)
         self.bpw.saveDirBox.grid(row=0, column=1, columnspan = 2, sticky='W')
 
-        self.bpw.browseButton = tk.Button(self.bpw, text = 'Browse', command = lambda: self.browseDir(bpw.saveDir))
+        self.bpw.browseButton = tk.Button(self.bpw, text = 'Browse', command = lambda: self.browseDir(self.bpw.saveDir))
         self.bpw.browseButton.grid(row=0, column=3, columnspan=1, sticky='W')
 
-        self.bpw.startPreviewButton = tk.Button(self.bpw, text='Start Preview', command = self.startBeamPointing)
+        self.bpw.startBPButton = tk.Button(self.bpw, text='Start Beam Pointing', command = self.startBeamPointing)
+        self.bpw.startBPButton.grid(row=0, column=4, columnspan=1, sticky='w')
+        self.bpw.stopBPButton = tk.Button(self.bpw, text='Stop Beam Pointing', command = self.stopBeamPointing)
+        self.bpw.stopBPButton.grid(row=1, column=4, columnspan=1, sticky='w')
+
+        self.bpw.collectionTimeLabel = tk.Label(self.bpw, text='Collection time, s (-1 = inf):')
+        self.bpw.collectionTimeLabel.grid(row=2, column=4, columnspan=1, sticky='sw')
+
+        self.bpw.collectionTime = tk.StringVar()
+        self.bpw.collectionTime.set('-1')
+
+        self.bpw.collectionTimeBox = tk.Entry(self.bpw, textvariable=self.bpw.collectionTime, width = 5)
+        self.bpw.collectionTimeBox.grid(row=3, column=4, columnspan=1, sticky='nw')
+
+        self.bpw.limitIntervalLabel = tk.Label(self.bpw, text='Limit interval, s (-1 = none):')
+        self.bpw.limitIntervalLabel.grid(row=4, column=4, columnspan=1, sticky='sw')
+
+        self.bpw.limitInterval = tk.StringVar()
+        self.bpw.limitInterval.set('-1')
+
+        self.bpw.limitIntervalBox = tk.Entry(self.bpw, textvariable=self.bpw.limitInterval, width = 5)
+        self.bpw.limitIntervalBox.grid(row=5, column=4, columnspan=1, sticky='nw')
+
+        self.bpw.startPreviewButton = tk.Button(self.bpw, text='Start Preview', command = lambda: self.startPreview(self.bpw.previewPanel))
         self.bpw.startPreviewButton.grid(row=1,column=0, sticky='W')
 
-        self.bpw.stopPreviewButton = tk.Button(self.bpw, text='Stop Preview', command = self.stopBeamPointing)
+        self.bpw.stopPreviewButton = tk.Button(self.bpw, text='Stop Preview', command = lambda: self.stopPreview(self.bpw.previewPanel))
         self.bpw.stopPreviewButton.grid(row=1,column=1, sticky='W')
 
         img = None
-        self.bpw.previewPanel = tk.Label(self.bpw, image = img)
+        self.bpw.previewPanel = tk.Label(self.bpw, image=img)
         self.bpw.previewPanel.image = img
-        self.bpw.previewPanel.grid(row=4, column=0, columnspan=4, sticky = 'W')
+        self.bpw.previewPanel.grid(row=2, column=0, rowspan=6, columnspan=4, sticky='WESN')
+
+        fig = Figure(figsize=(6,3), dpi=100)
+        self.bpw.ax = fig.add_subplot(111)
+        self.bpw.ax.set_ylabel('Center position (um)')
+        self.bpw.ax.set_xlabel('Time (s)')
+        fig.subplots_adjust(bottom=0.15)
+
+
+        self.bpw.canvas = FigureCanvasTkAgg(fig,master=self.bpw)
+        self.bpw.canvas.show()
+        self.bpw.canvas.get_tk_widget().grid(row=8, column=0, columnspan=5, sticky='E')
 
 
     def removeBeamPointingWindow(self):
+        try:
+            self.stopPreview(self.bpw.previewPanel)
+        except:
+            pass
+
         self.bpw.destroy()
         self.bpw = None
 
@@ -172,12 +258,113 @@ class Application(tk.Tk):
     def startBeamPointing(self):
         '''
         '''
-        print('start')
+
+        try:
+            self.stopPreview(self.bpw.previewPanel)
+        except:
+            pass
+
+        #create filename 
+        if not os.path.exists(os.path.dirname(self.bpw.saveDir.get())):
+            os.makedirs(os.path.dirname(self.bpw.saveDir.get()))
+
+        save_time = datetime.datetime.now().strftime('%Y-%m-%d %H%M%S')
+        filename = self.saveDir.get() + save_time + '.txt'
+        f = open(filename, 'w')
+        f.write(datetime.datetime.now().isoformat() + ' Beam Pointing\n')
+        f.write('time\tx0\ty0\n')
+        f.close
+
+        w = 1280
+        h = 720
+
+        #clear axes
+        self.bpw.ax.cla()
+        self.bpw.canvas.show()       
+        
+        #create camera object
+        self.bpw.cam = cv2.VideoCapture(np.int(self.cameraName.get()))
+        #set image width, height
+        self.bpw.cam.set(3,w)
+        self.bpw.cam.set(4,h)
+
+        self.bpw.stopEvent = threading.Event()
+        self.bpw.thread = threading.Thread(target = lambda: self.beamPointingLoop(filename))
+        #start image capture loop
+        self.bpw.thread.start()
+
 
     def stopBeamPointing(self):
         '''
         '''
-        print('stop')
+        self.bpw.stopEvent.set()
+        self.bpw.cam.release()
+
+        self.bpw.previewPanel.configure(image = None)
+        self.bpw.previewPanel.image = None
+        #self.statusText.set('Removed preview image')
+        self.statusText.set('Stopped Beampointing')
+
+
+    def beamPointingLoop(self,filename):
+        '''
+        '''
+        #set collection time
+        t_end = np.float(self.bpw.collectionTime.get())
+        if t_end <= -1:
+            t_end = np.inf
+        else:
+            self.bpw.ax.set_xlim([0,t_end])
+
+        #set minimum interval
+        dt_min = np.float(self.bpw.limitInterval.get())
+        if dt_min <= -1:
+            dt_min = 0
+
+        t0 = time.time()
+
+        width = 400
+
+        #check stop event
+        while not self.bpw.stopEvent.wait(dt_min):
+
+            ret, frame = self.bpw.cam.read()
+            timestamp = time.time()-t0
+
+            if timestamp > t_end:
+                self.stopBeamPointing()
+
+            if ret:
+
+                frame_sized = cv2.resize(frame, (width, np.int(9*width/16)))
+
+                #calculate moments
+                moments = calculate_2D_moments(frame.sum(2).astype(float), [PIXEL_SIZE,PIXEL_SIZE], False)
+                x = moments[0]
+                y = moments[1]
+
+                #save to file
+                f = open(filename,'a')
+                f.write('%.3f\t%.2f\t%.2f\n' %(timestamp,x,y))
+                f.close
+
+                #update figure
+                self.bpw.ax.plot(timestamp,x,'sr')
+                self.bpw.ax.plot(timestamp,y,'ob')
+                self.bpw.canvas.show()
+
+
+                #update display            
+                #frame_sized = cv2.cvtColor(frame_sized,cv2.COLOR_BGR2RGB)
+                image = ImageTk.PhotoImage(Image.fromarray(frame_sized))
+
+                self.bpw.previewPanel.configure(image = image)
+                self.bpw.previewPanel.image = image
+
+
+
+
+
 
 
 
@@ -207,11 +394,13 @@ class Application(tk.Tk):
         
     
     def onCapture(self):
-        """Display message based on password input"""
+        """
+        Capture frames and save
+        """
         
         t0 = time.time()
 
-        self.stopPreview()
+        #self.stopPreview()
 
         w = 1280
         h = 720        
@@ -259,7 +448,7 @@ class Application(tk.Tk):
         t2 = time.time()
         print(t2-t0, t2-t1)
         
-        self.startPreview()
+        #self.startPreview()
 
         im[:,:,[0,1,2]] = im[:,:,[2,1,0]]
         img = Image.fromarray(np.uint8(im*255))
@@ -281,12 +470,12 @@ class Application(tk.Tk):
         self.statusText.set('Image saved')
         
         
-    def startPreview(self):
+    def startPreview(self,display):
         '''start camera preview'''
         #print(self.stopEvent.is_set())
         self.stopEvent = None
         self.thread = None
-        self.thread = threading.Thread(target=self.videoLoop, args=())
+        self.thread = threading.Thread(target= lambda: self.videoLoop(display))
         self.stopEvent = threading.Event()
 
         w = 1280
@@ -301,15 +490,15 @@ class Application(tk.Tk):
         
         #self.after(20, self.checkQueue)
 
-    def stopPreview(self):
+    def stopPreview(self, display):
         
         try:
             self.stopEvent.set()
             #self.statusText.set('Set thread stop signal')
             self.cam.release()
             #self.statusText.set('Released camera')
-            self.previewPanel.configure(image = None)
-            self.previewPanel.image = None
+            display.configure(image = None)
+            display.image = None
             #self.statusText.set('Removed preview image')
             self.statusText.set('Stopped Preview')
 
@@ -317,11 +506,11 @@ class Application(tk.Tk):
             raise
         
        
-    def videoLoop(self):
+    def videoLoop(self,display):
         
         try:
             #stop_check = self.stopEvent.is_set()
-            while not self.stopEvent.wait(0.1):
+            while not self.stopEvent.wait(0.05):
                 # Capture frame-by-frame
 
                 r,frame = self.cam.read()
@@ -341,8 +530,8 @@ class Application(tk.Tk):
                     #self.imgQueue.put(img)
                     #self.after(20, self.videoLoop)
                     
-                    self.previewPanel.configure(image = img)
-                    self.previewPanel.image = img
+                    display.configure(image = img)
+                    display.image = img
                     #print(frame.shape)
                     sat_det = self.checkChannelSat(frame_sized)
                     self.setChannelSat(sat_det)
@@ -421,6 +610,7 @@ class Application(tk.Tk):
                 ch.configure(bg=cols[ind])
             else:
                 ch.configure(bg=self.bgColor)
+
                 
             
         
