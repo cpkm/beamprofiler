@@ -272,7 +272,7 @@ def calculate_beamwidths(data):
     data,x,y all same dimensions
     '''
     error_limit = 0.01
-    it_limit = 5
+    it_limit = 10
 
     #x = pix2um(np.arange(data.shape[1]))
     #y = pix2um(np.arange(data.shape[0]))
@@ -282,8 +282,9 @@ def calculate_beamwidths(data):
     erry = 1
     itN = 0
 
-    d0x = pix2um(data.shape[1])
-    d0y = pix2um(data.shape[0])
+    d0x = data.shape[1]
+    d0y = data.shape[0]
+
     roi_new = [d0x/2,d0x,d0y/2,d0y]
     full_data = data
 
@@ -291,25 +292,32 @@ def calculate_beamwidths(data):
 
         roi = roi_new
         data = get_roi(full_data,roi)
-        moments = calculate_2D_moments(data, pix2um([1,1]))
-        
-        [ax,ay,s2x,s2y,s2xy] = moments
+        moments = calculate_2D_moments(data)
 
-        g = np.sign(s2x-s2y)
-        dx = 2*np.sqrt(2)*((s2x+s2y) + g*((s2x+s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
-        dy = 2*np.sqrt(2)*((s2x+s2y) - g*((s2x+s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
+        dx = 4*np.sqrt(moments[2])
+        dy = 4*np.sqrt(moments[3])
 
         errx = np.abs(dx-d0x)/d0x
         erry = np.abs(dy-d0y)/d0y
         
         d0x = dx
         d0y = dy
-        #need to fix roi
-        roi_new = [ax+roi[1]/2,3*dx,ay+roi[3]/2,3*dy]     #[centrex,width,centrey,height] 
 
+        roi_new = [moments[0]+roi[0]-roi[1]/2,3*dx,moments[1]+roi[2]-roi[3]/2,3*dy]     #[centrex,width,centrey,height] 
+        
+        itN += 1
         if itN >= it_limit:
-            print()
+            print('exceeded iteration in calculating moments')
             break
+   
+    pixel_scale = [pix2um(1)]*2+ [pix2um(1)**2]*3
+    moments = pixel_scale*moments
+    [ax,ay,s2x,s2y,s2xy] = moments
+
+
+    g = np.sign(s2x-s2y)
+    dx = 2*np.sqrt(2)*((s2x+s2y) + g*((s2x-s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
+    dy = 2*np.sqrt(2)*((s2x+s2y) - g*((s2x-s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
 
     if s2x == s2y:
         phi = (np.pi/4)*np.sign(s2xy)
@@ -349,10 +357,10 @@ def calculate_2D_moments(data, axes_scale=[1,1], calc_2nd_moments = True):
         sig2y = np.sum(data*(y-avgy)**2*dx*dy)/A
         sig2xy = np.sum(data*(x-avgx)*(y-avgy)*dx*dy)/A
         
-        return [avgx,avgy,sig2x,sig2y,sig2xy]
+        return np.array([avgx,avgy,sig2x,sig2y,sig2xy])
 
     else:
-        return [avgx, avgy]
+        return np.array([avgx, avgy])
 
 
 def get_roi(data,roi):
@@ -367,21 +375,37 @@ def get_roi(data,roi):
     width = roi[1]
     height = roi[3]
 
-    print(left,bottom,width,height)
-
+    left = min(left,data.shape[1]-2)
     if left <= 0:
         width += left
         left = 0
+    elif np.isnan(left):
+        left=0
+    else:
+        left = np.int(left)
 
+    bottom = min(bottom,data.shape[0]-2)
     if bottom <= 0:
         height += bottom
         bottom = 0
+    elif np.isnan(bottom):
+        bottom = 0
+    else:
+        bottom = np.int(bottom)
 
     if left+width > data.shape[1]:
-        width = data.shape[1] - left
+        width = np.int(data.shape[1] - left)
+    elif np.isnan(width):
+        width = data.shape[1]
+    else:
+        width = np.int(width)
 
     if bottom+height > data.shape[0]:
-        height = data.shape[0] - bottom
+        height = np.int(data.shape[0] - bottom)
+    elif np.isnan(height):
+        height = data.shape[0]
+    else:
+        height = np.int(height)
 
     return data[bottom:bottom+height,left:left+width]
 
@@ -448,14 +472,15 @@ for f in files:
     chl_sat += [sat]
     img_roi += [roi]
 
+
     
 beam_stats = np.asarray(beam_stats)
 chl_sat = np.asarray(chl_sat)
 img_roi = np.asarray(img_roi)
 
 #x and y beam widths
-d2x = (1/2)*beam_stats[:,2]
-d2y = (1/2)*beam_stats[:,3]
+d2x = (1/2)*beam_stats[:,0]
+d2y = (1/2)*beam_stats[:,1]
 
 #fit to gaussian mode curve
 poptx, pcovx = fitM2(d2x,z)
