@@ -272,41 +272,56 @@ def calculate_beamwidths(data):
     data,x,y all same dimensions
     '''
     error_limit = 0.01
+    it_limit = 5
 
-    x = pix2um(np.arange(data.shape[1]))
-    y = pix2um(np.arange(data.shape[0]))
-    x,y = np.meshgrid(x,y)
+    #x = pix2um(np.arange(data.shape[1]))
+    #y = pix2um(np.arange(data.shape[0]))
+    #x,y = np.meshgrid(x,y)
 
     errx = 1
     erry = 1
-    d0x = x.max()
-    d0y = y.max()
+    itN = 0
+
+    d0x = pix2um(data.shape[1])
+    d0y = pix2um(data.shape[0])
     roi_new = [d0x/2,d0x,d0y/2,d0y]
     full_data = data
 
-    while any(errx,erry)>error_limit:
+    while any([errx,erry])>error_limit:
 
         roi = roi_new
         data = get_roi(full_data,roi)
-        [ax,ay,s2x,s2y,s2xy] = calculate_2D_moments(data)
+        moments = calculate_2D_moments(data, pix2um([1,1]))
         
+        [ax,ay,s2x,s2y,s2xy] = moments
+
         g = np.sign(s2x-s2y)
         dx = 2*np.sqrt(2)*((s2x+s2y) + g*((s2x+s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
         dy = 2*np.sqrt(2)*((s2x+s2y) - g*((s2x+s2y)**2 + 4*s2xy**2)**(1/2))**(1/2)
 
         errx = np.abs(dx-d0x)/d0x
         erry = np.abs(dy-d0y)/d0y
-
+        
+        d0x = dx
+        d0y = dy
+        #need to fix roi
         roi_new = [ax+roi[1]/2,3*dx,ay+roi[3]/2,3*dy]     #[centrex,width,centrey,height] 
 
+        if itN >= it_limit:
+            print()
+            break
+
+    if s2x == s2y:
+        phi = (np.pi/4)*np.sign(s2xy)
+    else:
+        phi = (1/2)*np.arctan(2*s2xy/(s2x-s2y))
+
+    beamwidths = [dx,dy,phi]
+
+    return beamwidths,roi,moments
 
 
-
-
-    return
-
-
-def calculate_2D_moments(data, axes_scale=[1,1]):
+def calculate_2D_moments(data, axes_scale=[1,1], calc_2nd_moments = True):
     '''
     data = 2D data
     axes_scale = (optional) scaling factor for x and y
@@ -327,12 +342,17 @@ def calculate_2D_moments(data, axes_scale=[1,1]):
     avgx = np.sum(data*x*dx*dy)/A
     avgy = np.sum(data*y*dx*dy)/A
 
-    #second moments (~varience)
-    sig2x = np.sum(data*(x-avgx)**2*dx*dy)/A
-    sig2y = np.sum(data*(y-avgy)**2*dx*dy)/A
-    sig2xy = np.sum(data*(x-avgx)*(y-avgy)*dx*dy)/A
+    #calculate second moments if required
+    if calc_2nd_moments:
+        #second moments (~varience)
+        sig2x = np.sum(data*(x-avgx)**2*dx*dy)/A
+        sig2y = np.sum(data*(y-avgy)**2*dx*dy)/A
+        sig2xy = np.sum(data*(x-avgx)*(y-avgy)*dx*dy)/A
+        
+        return [avgx,avgy,sig2x,sig2y,sig2xy]
 
-    return [avgx,avgy,sig2x,sig2y,sig2xy]
+    else:
+        return [avgx, avgy]
 
 
 def get_roi(data,roi):
@@ -340,10 +360,14 @@ def get_roi(data,roi):
     data = 2D data
     roi = [x0,width,y0,height]
     '''
-    left = np.int(roi[0] - roi[1]/2)
-    bottom = np.int(roi[2]-roi[3]/2)
-    width = np.int(roi[1])
-    height = np.int(roi[3])
+    #need to fix!!!
+    
+    left = roi[0] - roi[1]/2
+    bottom = roi[2] - roi[3]/2
+    width = roi[1]
+    height = roi[3]
+
+    print(left,bottom,width,height)
 
     if left <= 0:
         width += left
@@ -357,15 +381,20 @@ def get_roi(data,roi):
         width = data.shape[1] - left
 
     if bottom+height > data.shape[0]:
-        height = data.shape[0] - bottom 
+        height = data.shape[0] - bottom
 
     return data[bottom:bottom+height,left:left+width]
 
 
 
-def pix2um(x):
+def pix2um(input):
 
-    return x*PIXSIZE
+    if np.isscalar(input):
+        output = input*PIXSIZE
+    else:
+        output =  [x*PIXSIZE for x in input]
+
+    return output
     
 '''
 End of definitions
@@ -397,6 +426,7 @@ if np.size(files) is not np.size(z):
 #output parameters
 beam_stats = []
 chl_sat = []
+img_roi = []
 
 for f in files:
     
@@ -404,19 +434,24 @@ for f in files:
     data, sat = flattenrgb(im, BITS, SATLIM)
     #SAT is 1x3 array (RGB), value True (1) means RGB channel was saturated
 
-    data = getroi(data)
+    # data = getroi(data)
 
-    x = pix2um(np.arange(data.shape[1]))
-    y = pix2um(np.arange(data.shape[0]))
-    x,y = np.meshgrid(x,y)
+    # x = pix2um(np.arange(data.shape[1]))
+    # y = pix2um(np.arange(data.shape[0]))
+    # x,y = np.meshgrid(x,y)
 
-    d4stats = d4sigma(data, (x,y))
+    # d4stats = d4sigma(data, (x,y))
+
+    d4stats, roi , _ = calculate_beamwidths(data)
 
     beam_stats += [d4stats]
     chl_sat += [sat]
+    img_roi += [roi]
+
     
 beam_stats = np.asarray(beam_stats)
 chl_sat = np.asarray(chl_sat)
+img_roi = np.asarray(img_roi)
 
 #x and y beam widths
 d2x = (1/2)*beam_stats[:,2]
@@ -505,5 +540,4 @@ ax5.legend(loc=9)
 
 ax6.text(-0.1,0.2,'M2x = %.2f\nM2y = %.2f\nwx = %.2f\nwy = %.2f' %(poptx[2],popty[2],poptx[1],popty[1]))
 
-print(poptx)
 plt.show()
