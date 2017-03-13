@@ -239,11 +239,10 @@ class Application(tk.Tk):
         self.bpw.ax.set_xlabel('Time (s)')
         fig.subplots_adjust(bottom=0.15)
 
-
         self.bpw.canvas = FigureCanvasTkAgg(fig,master=self.bpw)
         self.bpw.canvas.show()
-        self.bpw.canvas.get_tk_widget().grid(row=8, column=0, columnspan=5, sticky='E')
-
+        #self.bpw.canvas.get_tk_widget().grid(row=8, column=0, columnspan=5, sticky='E')
+        self.bpw.canvas._tkcanvas.grid(row=8, column=0, columnspan=5, sticky='E')
 
     def removeBeamPointingWindow(self):
         try:
