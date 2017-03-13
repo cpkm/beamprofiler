@@ -15,7 +15,7 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 import threading
 import time
