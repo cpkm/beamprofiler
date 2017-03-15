@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.gridspec import GridSpec
 import scipy.optimize as opt
+import uncertainties as un
 
 import glob
 import time
@@ -101,7 +102,7 @@ def fitgaussian2D(data, xy_tuple, rot=None):
     return popt,pcov
     
 
-def gaussianbeamwaist(z,z0,w0,M2=1,const=0,wl=1.030):
+def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030):
     '''
     generate gaussian beam profile w(z)
 
@@ -118,7 +119,7 @@ def gaussianbeamwaist(z,z0,w0,M2=1,const=0,wl=1.030):
 
         z = array of position along optical axis in mm
         z0 = position of beam waist (focus) in mm
-        w0 = beam waist in um
+        d0 = beam waist in um (diameter)
         M2 = beam parameter M^2, unitless
         wl =  wavelenth in um, default to 1030nm (1.03um)
 
@@ -128,24 +129,53 @@ def gaussianbeamwaist(z,z0,w0,M2=1,const=0,wl=1.030):
     '''
     z = 1000*np.asarray(z).astype(float)
     z0 = 1000*z0
+    w0 = d0/2
     
     w = (w0**2 + M2**2*(wl/(np.pi*w0))**2*(z-z0)**2)**(1/2) + const
 
     return w
 
-def fitM2(wz,z):
-       
-    w0 = np.min(wz)
-    z0 = z[np.argmin(wz)]
-    const = 0
+def fitM2(dz, z, wl=1.03E-6):
+    '''
+    z in mm
+    dz, beamwidth in um
+
+    '''
+
+    dz = dz*1E-6
+    z = z*1E-3
     
-    p0 = [z0,w0,1,const]
+    di = np.min(dz)
+    zi = z[np.argmin(dz)]
     
-    limits = ([0,-np.inf,1,-w0/2], [np.inf,np.inf,np.inf,w0/2])
+    ci = (wl/(np.pi*di))**2
+    bi = -2*zi*ci
+    ai = di**2 + ci*zi**2
+    
+    c_lim = np.array([0, np.inf])
+    b_lim = np.array([-np.inf,np.inf])
+    a_lim = np.array([0, np.inf])
+
+    p0 = [ai, bi, ci]
+    #limits = (-np.inf,np.inf)
+    limits = ([i.min() for i in [a_lim,b_lim,c_lim]],  [i.max() for i in [a_lim,b_lim,c_lim]])
+
+    f = lambda z,a,b,c: (a + b*z + c*z**2)**(1/2)
         
-    popt,pcov = opt.curve_fit(gaussianbeamwaist,z,wz,p0,bounds=limits, max_nfev=10000)
+    popt,pcov = opt.curve_fit(f,z,dz,p0,bounds=limits)
     
-    return popt,pcov
+    [a,b,c] = [un.ufloat(popt[i], np.sqrt(pcov[i,i])) for i in range(3)]
+
+    z0 = (1E3)*(-b/(2*c))
+    d0 = (1E6)*((4*a*c-b**2)**(1/2))*(1/(2*c**(1/2)))
+    M2 = (np.pi/(8*wl))*((4*a*c-b**2)**(1/2))
+    theta = c**(1/2)
+    zR = (1E3)*((4*a*c-b**2)**(1/2))*(1/(2*c))
+
+    value = [x.nominal_value for x in [z0,d0,M2,theta,zR]]
+    std = [x.std_dev for x in [z0,d0,M2,theta,zR]]
+
+    return value, std
     
 
 
@@ -271,8 +301,8 @@ def calculate_beamwidths(data):
 
     data,x,y all same dimensions
     '''
-    error_limit = 0.01
-    it_limit = 10
+    error_limit = 0.0001
+    it_limit = 5
 
     #x = pix2um(np.arange(data.shape[1]))
     #y = pix2um(np.arange(data.shape[0]))
@@ -288,7 +318,7 @@ def calculate_beamwidths(data):
     roi_new = [d0x/2,d0x,d0y/2,d0y]
     full_data = data
 
-    while any([errx,erry])>error_limit:
+    while any([i>error_limit for i in [errx,erry]]):
 
         roi = roi_new
         data = get_roi(full_data,roi)
@@ -479,22 +509,23 @@ chl_sat = np.asarray(chl_sat)
 img_roi = np.asarray(img_roi)
 
 #x and y beam widths
-d2x = (1/2)*beam_stats[:,0]
-d2y = (1/2)*beam_stats[:,1]
+d4x = beam_stats[:,0]
+d4y = beam_stats[:,1]
 
 #fit to gaussian mode curve
-poptx, pcovx = fitM2(d2x,z)
-popty, pcovy = fitM2(d2y,z)
+valx, stdx = fitM2(d4x,z)
+valy, stdy = fitM2(d4y,z)
 
 #obtain 'focus image'
-focus_number = np.argmin(np.abs(poptx[0]-z))
+focus_number = np.argmin(np.abs(valx[0]-z))
+Z = z-valx[0]
 
 im = plt.imread(files[focus_number])
 data, SAT = flattenrgb(im, BITS, SATLIM)
-data = normalize(getroi(data.astype(float)))
+data = normalize(get_roi(data.astype(float), img_roi[focus_number]))
 
-x = np.arange(data.shape[1])*PIXSIZE - beam_stats[focus_number,0]
-y = np.arange(data.shape[0])*PIXSIZE - beam_stats[focus_number,1]
+x = PIXSIZE*(np.arange(data.shape[1]) - data.shape[1]/2)
+y = PIXSIZE*(np.arange(data.shape[0]) - data.shape[0]/2)
 X,Y = np.meshgrid(x,y)
 
 
@@ -553,16 +584,16 @@ ax3.plot_surface(X,Y,data, cmap=plt.cm.plasma)
 ax3.set_ylabel('y (um)')
 ax3.set_xlabel('x (um)')
 
-ax5.plot(z,d2x,'bx',markerfacecolor='none')
-ax5.plot(z,d2y,'g+',markerfacecolor='none')
-ax5.plot(z,gaussianbeamwaist(z,*poptx),'b', label='X')
-ax5.plot(z,gaussianbeamwaist(z,*popty),'g', label='Y')
+ax5.plot(Z,d4x,'bx',markerfacecolor='none')
+ax5.plot(Z,d4y,'g+',markerfacecolor='none')
+ax5.plot(Z,2*gaussianbeamwaist(z,*valx[:3]),'b', label='X')
+ax5.plot(Z,2*gaussianbeamwaist(z,*valy[:3]),'g', label='Y')
 ax5.set_xlabel('z (mm)')
-ax5.set_ylabel('Beam Radius (um)')
+ax5.set_ylabel('Beam Waist (um)')
 ax5.yaxis.tick_right()
 ax5.yaxis.set_label_position('right')
 ax5.legend(loc=9)
 
-ax6.text(-0.1,0.2,'M2x = %.2f\nM2y = %.2f\nwx = %.2f\nwy = %.2f' %(poptx[2],popty[2],poptx[1],popty[1]))
+ax6.text(-0.1,0.2,'M2x = %.2f\nM2y = %.2f\nwx = %.2f\nwy = %.2f' %(valx[2],valy[2],valx[1]/2,valy[1]/2))
 
 plt.show()
