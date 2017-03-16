@@ -45,6 +45,11 @@ def calculate_2D_moments(data, axes_scale=[1,1], calc_2nd_moments = True):
     x,y = np.meshgrid(x,y)
 
     A = np.sum(data*dx*dy)
+    if A==0:
+        if calc_2nd_moments:
+            return np.zeros(5)
+        else:
+            return np.zeros(2)
     
     #first moments (averages)
     avgx = np.sum(data*x*dx*dy)/A
@@ -198,6 +203,10 @@ class Application(tk.Tk):
 
         self.bpw.browseButton = tk.Button(self.bpw, text = 'Browse', command = lambda: self.browseDir(self.bpw.saveDir))
         self.bpw.browseButton.grid(row=0, column=3, columnspan=1, sticky='W')
+        
+        self.bpw.logCheck = tk.BooleanVar()
+        self.bpw.logCheckBox = tk.Checkbutton(self.bpw, text = 'log', variable = self.bpw.logCheck)
+        self.bpw.logCheckBox.grid(row=0, column=3, sticky='E')
 
         self.bpw.startBPButton = tk.Button(self.bpw, text='Start Beam Pointing', command = self.startBeamPointing)
         self.bpw.startBPButton.grid(row=0, column=4, columnspan=1, sticky='w')
@@ -269,16 +278,21 @@ class Application(tk.Tk):
 
         save_time = datetime.datetime.now().strftime('%Y-%m-%d %H%M%S')
         filename = self.saveDir.get() + save_time + '.txt'
-        f = open(filename, 'w')
-        f.write(datetime.datetime.now().isoformat() + ' Beam Pointing\n')
-        f.write('time\tx0\ty0\n')
-        f.close
+        
+        self.bpw.logCheckBox.config(state='disabled')
+        if self.bpw.logCheck.get():
+            f = open(filename, 'w')
+            f.write(datetime.datetime.now().isoformat() + ' Beam Pointing\n')
+            f.write('time\tx0\ty0\n')
+            f.close
 
         w = 1280
         h = 720
 
         #clear axes
         self.bpw.ax.cla()
+        self.bpw.ax.set_ylabel('Center position (um)')
+        self.bpw.ax.set_xlabel('Time (s)')
         self.bpw.canvas.show()       
         
         #create camera object
@@ -298,6 +312,7 @@ class Application(tk.Tk):
         '''
         self.bpw.stopEvent.set()
         self.bpw.cam.release()
+        self.bpw.logCheckBox.config(state='normal')
 
         self.bpw.previewPanel.configure(image = None)
         self.bpw.previewPanel.image = None
@@ -342,10 +357,11 @@ class Application(tk.Tk):
                 x = moments[0]
                 y = moments[1]
 
-                #save to file
-                f = open(filename,'a')
-                f.write('%.3f\t%.2f\t%.2f\n' %(timestamp,x,y))
-                f.close
+                if self.bpw.logCheck.get():
+                    #save to file
+                    f = open(filename,'a')
+                    f.write('%.3f\t%.2f\t%.2f\n' %(timestamp,x,y))
+                    f.close
 
                 #update figure
                 self.bpw.ax.plot(timestamp,x,'sr')
@@ -417,7 +433,7 @@ class Application(tk.Tk):
         im=np.zeros((h,w,3))
         
         t1 = time.time()
-        print(t1-t0)
+        #print(t1-t0)
         
         while i<FRAMES_AVG:
             # Capture frame-by-frame
@@ -445,7 +461,7 @@ class Application(tk.Tk):
         self.statusText.set('Image captured')
         #print('Image captured')
         t2 = time.time()
-        print(t2-t0, t2-t1)
+        #print(t2-t0, t2-t1)
         
         #self.startPreview()
 
@@ -462,10 +478,10 @@ class Application(tk.Tk):
         #print('Image saved')
         
         #self.stopPreview() 
-        #self.startPreview()
+        self.startPreview(self.previewPanel)
 
         t3 = time.time()
-        print(t3-t0, t3-t2)
+        #print(t3-t0, t3-t2)
         self.statusText.set('Image saved')
         
         
