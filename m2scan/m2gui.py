@@ -206,7 +206,11 @@ class Application(tk.Tk):
         
         self.bpw.logCheck = tk.BooleanVar()
         self.bpw.logCheckBox = tk.Checkbutton(self.bpw, text = 'log', variable = self.bpw.logCheck)
-        self.bpw.logCheckBox.grid(row=0, column=3, sticky='E')
+        self.bpw.logCheckBox.grid(row=0, column=3, sticky='SE')
+        
+        self.bpw.disablePlotCheck = tk.BooleanVar()
+        self.bpw.disablePlotBox = tk.Checkbutton(self.bpw, text = 'no plot', variable = self.bpw.disablePlotCheck)
+        self.bpw.disablePlotBox.grid(row=1, column=3, sticky='NE')
 
         self.bpw.startBPButton = tk.Button(self.bpw, text='Start Beam Pointing', command = self.startBeamPointing)
         self.bpw.startBPButton.grid(row=0, column=4, columnspan=1, sticky='w')
@@ -277,7 +281,7 @@ class Application(tk.Tk):
             os.makedirs(os.path.dirname(self.bpw.saveDir.get()))
 
         save_time = datetime.datetime.now().strftime('%Y-%m-%d %H%M%S')
-        filename = self.saveDir.get() + save_time + '.txt'
+        filename = self.bpw.saveDir.get() + save_time + '.txt'
         
         self.bpw.logCheckBox.config(state='disabled')
         if self.bpw.logCheck.get():
@@ -336,11 +340,12 @@ class Application(tk.Tk):
             dt_min = 0
 
         t0 = time.time()
+        timestamp = 0
 
         width = 400
 
         #check stop event
-        while not self.bpw.stopEvent.wait(dt_min):
+        while not self.bpw.stopEvent.wait(dt_min-(time.time()-t0-timestamp)):
 
             ret, frame = self.bpw.cam.read()
             timestamp = time.time()-t0
@@ -363,18 +368,19 @@ class Application(tk.Tk):
                     f.write('%.3f\t%.2f\t%.2f\n' %(timestamp,x,y))
                     f.close
 
-                #update figure
-                self.bpw.ax.plot(timestamp,x,'sr')
-                self.bpw.ax.plot(timestamp,y,'ob')
-                self.bpw.canvas.show()
+                if not self.bpw.disablePlotCheck.get():
+                    #update figure
+                    self.bpw.ax.plot(timestamp,x,'sr')
+                    self.bpw.ax.plot(timestamp,y,'ob')
+                    self.bpw.canvas.show()
 
-
-                #update display            
-                #frame_sized = cv2.cvtColor(frame_sized,cv2.COLOR_BGR2RGB)
-                image = ImageTk.PhotoImage(Image.fromarray(frame_sized))
-
-                self.bpw.previewPanel.configure(image = image)
-                self.bpw.previewPanel.image = image
+    
+                    #update display            
+                    #frame_sized = cv2.cvtColor(frame_sized,cv2.COLOR_BGR2RGB)
+                    image = ImageTk.PhotoImage(Image.fromarray(frame_sized))
+                    
+                    self.bpw.previewPanel.configure(image = image)
+                    self.bpw.previewPanel.image = image
 
 
 
