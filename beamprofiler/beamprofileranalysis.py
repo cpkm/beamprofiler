@@ -457,10 +457,10 @@ End of definitions
 
 BITS = 8       #image channel intensity resolution
 SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
-PIXSIZE = 1.74  #pixel size in um, measured
+PIXSIZE = 1.745  #pixel size in um, measured
 
 
-filedir = '2016-07-29 testdata'
+filedir = 'asymmetric scan'
 files = glob.glob(filedir+'/*.jp*g')
 
 # Consistency check, raises error if failure
@@ -486,15 +486,6 @@ for f in files:
     
     im = plt.imread(f)
     data, sat = flattenrgb(im, BITS, SATLIM)
-    #SAT is 1x3 array (RGB), value True (1) means RGB channel was saturated
-
-    # data = getroi(data)
-
-    # x = pix2um(np.arange(data.shape[1]))
-    # y = pix2um(np.arange(data.shape[0]))
-    # x,y = np.meshgrid(x,y)
-
-    # d4stats = d4sigma(data, (x,y))
 
     d4stats, roi , _ = calculate_beamwidths(data)
 
@@ -524,31 +515,12 @@ im = plt.imread(files[focus_number])
 data, SAT = flattenrgb(im, BITS, SATLIM)
 data = normalize(get_roi(data.astype(float), img_roi[focus_number]))
 
-x = PIXSIZE*(np.arange(data.shape[1]) - data.shape[1]/2)
-y = PIXSIZE*(np.arange(data.shape[0]) - data.shape[0]/2)
+x = pix2um(1)*(np.arange(data.shape[1]) - data.shape[1]/2)
+y = pix2um(1)*(np.arange(data.shape[0]) - data.shape[0]/2)
 X,Y = np.meshgrid(x,y)
 
-
-'''
-#plot profile fitresults
-fig1, ax1 = plt.subplots(1, 1)
-ax1.plot(z,d2x,'bx')
-ax1.plot(z,d2y,'go')
-ax1.plot(z,gaussianbeamwaist(z,*poptx),'b')
-ax1.plot(z,gaussianbeamwaist(z,*popty),'g')
-
-#plot image of focussed beam profile
-fig2, ax2 = plt.subplots(1, 1)
-ax2.imshow(data, cmap=plt.cm.plasma, origin='lower', interpolation='bilinear',
-    extent=(x.min(), x.max(), y.min(), y.max()))
-contours = data.max()*(np.exp(-np.array([2,1.5,1,0.5])**2/2))
-widths = np.array([1,0.5,1,0.5])
-CS = ax2.contour(data, contours, colors = 'k', linewidths = widths, origin='lower', interpolation='bilinear', extent=(x.min(), x.max(), y.min(), y.max()))
-
-ax2.plot(x, (1/4)*(y.max()-y.min())*np.sum(data,0)/np.sum(data,0).max() + y.min(), 'w')
-ax2.plot((1/4)*(x.max()-x.min())*np.sum(data,1)/np.sum(data,1).max() + x.min(), y, 'w')
-plt.show()   
-'''
+##
+#plotting for pretty pictures
 plot_grid = [3,6]
 plot_w = 10
 asp_ratio = plot_grid[0]/plot_grid[1]
