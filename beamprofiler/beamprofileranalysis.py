@@ -485,6 +485,9 @@ except (AttributeError, FileNotFoundError):
 if np.size(files) is not np.size(z):
     stop('# of images does not match positions - fix ASAP')
     
+order = np.argsort(z)
+z = np.array(z)[order]
+files = np.array(files)[order]
 
 #output parameters
 beam_stats = []
