@@ -20,6 +20,7 @@ import uncertainties as un
 
 import glob
 import time
+import warnings
 
 def stop(s = 'error'): raise Exception(s)
 
@@ -284,10 +285,15 @@ def normalize(data, offset=0):
     data is array or matrix to be normalized
     offset = (optional) constant offset
     '''
-    
-    return (data-data.min())/(data.max()-data.min()) + offset
-    
+    shift = data-data.min()
+    scale = data.max()-data.min()
 
+    if scale == 0:
+        warnings.warn('Divide-by-zero in Normalization. Scaled to 1.')
+        return np.ones(data.shape) + offset
+    else:
+        return shift/scale + offset
+    
 
 def make_ticklabels_invisible(axes):
     for ax in axes:
