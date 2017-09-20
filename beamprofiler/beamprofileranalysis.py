@@ -148,8 +148,11 @@ def fitM2(dz, z, wl=1.03E-6):
     
     di = np.min(dz)
     zi = z[np.argmin(dz)]
-    
-    ci = (wl/(np.pi*di))**2
+    dm = np.max(dz)
+    zm = z[np.argmax(dz)]
+
+    #ci = (wl/(np.pi*di))**2
+    ci = (np.arctan((dm-di)/(zm-zi)))**2
     bi = -2*zi*ci
     ai = di**2 + ci*zi**2
     
