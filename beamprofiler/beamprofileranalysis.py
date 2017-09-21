@@ -140,9 +140,8 @@ def fitM2(dz, z, wl=1.03E-6):
     '''
     z in mm
     dz, beamwidth in um
-
     '''
-
+    #convert z and dz to SI, ie. meters
     dz = dz*1E-6
     z = z*1E-3
     
@@ -151,7 +150,6 @@ def fitM2(dz, z, wl=1.03E-6):
     dm = np.max(dz)
     zm = z[np.argmax(dz)]
 
-    #ci = (wl/(np.pi*di))**2
     ci = (np.arctan((dm-di)/(zm-zi)))**2
     bi = -2*zi*ci
     ai = di**2 + ci*zi**2
@@ -161,15 +159,15 @@ def fitM2(dz, z, wl=1.03E-6):
     a_lim = np.array([0, np.inf])
 
     p0 = [ai, bi, ci]
-    #limits = (-np.inf,np.inf)
     limits = ([i.min() for i in [a_lim,b_lim,c_lim]],  [i.max() for i in [a_lim,b_lim,c_lim]])
 
     f = lambda z,a,b,c: (a + b*z + c*z**2)**(1/2)
         
     popt,pcov = opt.curve_fit(f,z,dz,p0,bounds=limits)
     
-    [a,b,c] = [un.ufloat(popt[i], np.sqrt(pcov[i,i])) for i in range(3)]
-
+    #create correlated uncertainty values
+    (a,b,c) = un.correlated_values(popt,pcov)
+    
     z0 = (1E3)*(-b/(2*c))
     d0 = (1E6)*((4*a*c-b**2)**(1/2))*(1/(2*c**(1/2)))
     M2 = (np.pi/(8*wl))*((4*a*c-b**2)**(1/2))
@@ -307,15 +305,9 @@ def make_ticklabels_invisible(axes):
 def calculate_beamwidths(data):
     '''
     data = image matrix
-
-    data,x,y all same dimensions
     '''
     error_limit = 0.0001
     it_limit = 5
-
-    #x = pix2um(np.arange(data.shape[1]))
-    #y = pix2um(np.arange(data.shape[0]))
-    #x,y = np.meshgrid(x,y)
 
     errx = 1
     erry = 1
@@ -407,7 +399,6 @@ def get_roi(data,roi):
     data = 2D data
     roi = [x0,width,y0,height]
     '''
-    #need to fix!!!
     
     left = roi[0] - roi[1]/2
     bottom = roi[2] - roi[3]/2
@@ -478,6 +469,7 @@ if not files:
 
 try:
     z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
+    #double pass configuration, covert to meters
     z = 2*z
 except (AttributeError, FileNotFoundError):
     stop('No position file found --> best be named "position.txt"')
