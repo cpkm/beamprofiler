@@ -138,13 +138,21 @@ def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030):
 
 def fitM2(dz, z, wl=1.03E-6):
     '''
-    z in mm
-    dz, beamwidth in um
+    Everything is SI units.
+    Inputs:
+        z = optical axis position array, m
+        dz = calculated beamwidth data, m
+
+    Outputs:
+        z0 = focal point along optical axis, m
+        d0 = beamwaist at focus, m
+        M2 = M2 beam parameter, unitless
+        theta = divergence, rad
+        zR = Rayleigh paramter, m
+
+    All outputs include associated uncertainties.
     '''
-    #convert z and dz to SI, ie. meters
-    dz = dz*1E-6
-    z = z*1E-3
-    
+    print(z,dz)     
     di = np.min(dz)
     zi = z[np.argmin(dz)]
     dm = np.max(dz)
@@ -168,11 +176,11 @@ def fitM2(dz, z, wl=1.03E-6):
     #create correlated uncertainty values
     (a,b,c) = un.correlated_values(popt,pcov)
     
-    z0 = (1E3)*(-b/(2*c))
-    d0 = (1E6)*((4*a*c-b**2)**(1/2))*(1/(2*c**(1/2)))
+    z0 = (-b/(2*c))
+    d0 = ((4*a*c-b**2)**(1/2))*(1/(2*c**(1/2)))
     M2 = (np.pi/(8*wl))*((4*a*c-b**2)**(1/2))
     theta = c**(1/2)
-    zR = (1E3)*((4*a*c-b**2)**(1/2))*(1/(2*c))
+    zR = ((4*a*c-b**2)**(1/2))*(1/(2*c))
 
     value = [x.nominal_value for x in [z0,d0,M2,theta,zR]]
     std = [x.std_dev for x in [z0,d0,M2,theta,zR]]
@@ -340,8 +348,11 @@ def calculate_beamwidths(data):
         if itN >= it_limit:
             print('exceeded iteration in calculating moments')
             break
-   
-    pixel_scale = [pix2um(1)]*2+ [pix2um(1)**2]*3
+
+    #create scaling array for pixels to meters
+    #2nd moments must be scaled by square (units m**2)
+    pixel_scale = [pix2len(1)]*2 + [pix2len(1)**2]*3
+    
     moments = pixel_scale*moments
     [ax,ay,s2x,s2y,s2xy] = moments
 
@@ -441,7 +452,7 @@ def get_roi(data,roi):
 
 
 
-def pix2um(input):
+def pix2len(input):
 
     if np.isscalar(input):
         output = input*PIXSIZE
@@ -457,7 +468,7 @@ End of definitions
 
 BITS = 8       #image channel intensity resolution
 SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
-PIXSIZE = 1.745  #pixel size in um, measured
+PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
 
 
 filedir = 'asymmetric scan'
@@ -469,8 +480,8 @@ if not files:
 
 try:
     z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
-    #double pass configuration, covert to meters
-    z = 2*z
+    #double pass configuration, covert mm to meters
+    z = 2*z*1E-3
 except (AttributeError, FileNotFoundError):
     stop('No position file found --> best be named "position.txt"')
     
@@ -519,8 +530,8 @@ im = plt.imread(files[focus_number])
 data, SAT = flattenrgb(im, BITS, SATLIM)
 data = normalize(get_roi(data.astype(float), img_roi[focus_number]))
 
-x = pix2um(1)*(np.arange(data.shape[1]) - data.shape[1]/2)
-y = pix2um(1)*(np.arange(data.shape[0]) - data.shape[0]/2)
+x = pix2len(1)*(np.arange(data.shape[1]) - data.shape[1]/2)
+y = pix2len(1)*(np.arange(data.shape[0]) - data.shape[0]/2)
 X,Y = np.meshgrid(x,y)
 
 ##
