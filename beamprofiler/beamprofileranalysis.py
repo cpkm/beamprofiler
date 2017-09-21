@@ -151,8 +151,7 @@ def fitM2(dz, z, wl=1.03E-6):
         zR = Rayleigh paramter, m
 
     All outputs include associated uncertainties.
-    '''
-    print(z,dz)     
+    '''    
     di = np.min(dz)
     zi = z[np.argmin(dz)]
     dm = np.max(dz)
@@ -522,20 +521,24 @@ d4y = beam_stats[:,1]
 valx, stdx = fitM2(d4x,z)
 valy, stdy = fitM2(d4y,z)
 
+
+##
+#plotting for pretty pictures
+
 #obtain 'focus image'
 focus_number = np.argmin(np.abs(valx[0]-z))
-Z = z-valx[0]
 
 im = plt.imread(files[focus_number])
 data, SAT = flattenrgb(im, BITS, SATLIM)
 data = normalize(get_roi(data.astype(float), img_roi[focus_number]))
 
-x = pix2len(1)*(np.arange(data.shape[1]) - data.shape[1]/2)
-y = pix2len(1)*(np.arange(data.shape[0]) - data.shape[0]/2)
+#put x,y in um, z in mm
+x = pix2len(1)*(np.arange(data.shape[1]) - data.shape[1]/2)*1E6
+y = pix2len(1)*(np.arange(data.shape[0]) - data.shape[0]/2)*1E6
 X,Y = np.meshgrid(x,y)
+Z = (z-valx[0])*1E3
 
-##
-#plotting for pretty pictures
+#set up plot grid
 plot_grid = [3,6]
 plot_w = 10
 asp_ratio = plot_grid[0]/plot_grid[1]
@@ -571,16 +574,16 @@ ax3.plot_surface(X,Y,data, cmap=plt.cm.plasma)
 ax3.set_ylabel('y (um)')
 ax3.set_xlabel('x (um)')
 
-ax5.plot(Z,d4x,'bx',markerfacecolor='none')
-ax5.plot(Z,d4y,'g+',markerfacecolor='none')
-ax5.plot(Z,2*gaussianbeamwaist(z,*valx[:3]),'b', label='X')
-ax5.plot(Z,2*gaussianbeamwaist(z,*valy[:3]),'g', label='Y')
+ax5.plot(Z,d4x*1E6,'bx',markerfacecolor='none')
+ax5.plot(Z,d4y*1E6,'g+',markerfacecolor='none')
+ax5.plot(Z,2*gaussianbeamwaist(z,*valx[:3])*1E6,'b', label='X')
+ax5.plot(Z,2*gaussianbeamwaist(z,*valy[:3])*1E6,'g', label='Y')
 ax5.set_xlabel('z (mm)')
-ax5.set_ylabel('Beam Waist (um)')
+ax5.set_ylabel('Spot size, 2w (um)')
 ax5.yaxis.tick_right()
 ax5.yaxis.set_label_position('right')
 ax5.legend(loc=9)
 
-ax6.text(-0.1,0.2,'M2x = %.2f\nM2y = %.2f\nwx = %.2f\nwy = %.2f' %(valx[2],valy[2],valx[1]/2,valy[1]/2))
+ax6.text(-0.2,0.2,'M2x = {:.2f}\nM2y = {:.2f}\nwx = {:.2e}\nwy = {:.2e}'.format(valx[2],valy[2],valx[1]/2,valy[1]/2))
 
 plt.show()
