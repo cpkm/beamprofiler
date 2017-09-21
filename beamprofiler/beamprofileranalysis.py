@@ -103,7 +103,7 @@ def fitgaussian2D(data, xy_tuple, rot=None):
     return popt,pcov
     
 
-def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030):
+def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030E-6):
     '''
     generate gaussian beam profile w(z)
 
@@ -128,8 +128,8 @@ def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030):
 
         w = w(z) position dependent beam waist in um. Same size as 'z'
     '''
-    z = 1000*np.asarray(z).astype(float)
-    z0 = 1000*z0
+    z = np.asarray(z).astype(float)
+    z0 = z0
     w0 = d0/2
     
     w = (w0**2 + M2**2*(wl/(np.pi*w0))**2*(z-z0)**2)**(1/2) + const
