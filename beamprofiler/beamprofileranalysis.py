@@ -264,6 +264,7 @@ def flattenrgb(im, bits=8, satlim=0.001):
 def d4sigma(data, xy):
     
     '''
+    ***OBSOLETE*** see calculate_2D_moments
     calculate D4sigma of beam
     x,y,data all same size
     A is normalization factor
