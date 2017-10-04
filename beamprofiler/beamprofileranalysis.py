@@ -21,6 +21,7 @@ import uncertainties as un
 import glob
 import time
 import warnings
+import os
 
 def stop(s = 'error'): raise Exception(s)
 
@@ -190,6 +191,7 @@ def fitM2(dz, z, wl=1.03E-6):
 
 def getroi(data,Nsig=3):
     '''
+    ***OBSOLETE***
     Generates a region of interest for a 2D array, based on the varience of the data.
     Cropping box is defined by [left, bottom, width, height]
     
@@ -451,7 +453,6 @@ def get_roi(data,roi):
     return data[bottom:bottom+height,left:left+width]
 
 
-
 def pix2len(input):
 
     if np.isscalar(input):
@@ -460,6 +461,37 @@ def pix2len(input):
         output =  [x*PIXSIZE for x in input]
 
     return output
+
+
+def read_position(file_dir):
+    '''Parse position file.
+    '''
+    unit_line = 2
+    pos_file = file_dir + '/position.txt' 
+    z = np.loadtxt(pos_file, skiprows = unit_line)
+    with open(pos_file) as f:
+        header = f.readlines()[:unit_line]
+    
+    unit = header[unit_line-1].split('=')[1].strip().lower()
+    
+    if unit=='m':
+        s = 1
+    elif unit=='mm':
+        s=1E-3
+    elif unit=='um':
+        s=1E-6
+    elif unit=='nm':
+        s=1E-9
+    elif unit=='pm':
+        s=1E-12
+    else:
+        #default to mm
+        s=1E-3
+        
+    z = 2*s*z
+    
+    return z
+        
     
 '''
 End of definitions
@@ -470,18 +502,25 @@ BITS = 8       #image channel intensity resolution
 SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
 PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
 
+cur_dir = False
+alt_file_location = 'asymmetric scan'
 
-filedir = 'asymmetric scan'
-files = glob.glob(filedir+'/*.jp*g')
+if cur_dir:
+    file_dir = os.getcwd()
+else:
+    file_dir = alt_file_location
+    
+files = glob.glob(file_dir+'/*.jp*g')
 
 # Consistency check, raises error if failure
 if not files:
     stop('No files found... try again, but be better')
 
 try:
-    z = np.loadtxt(filedir + '/position.txt', skiprows = 1)
+    z = read_position(file_dir)
+    #z = np.loadtxt(file_dir + '/position.txt', skiprows = 2)
     #double pass configuration, covert mm to meters
-    z = 2*z*1E-3
+    #z = 2*z*1E-3
 except (AttributeError, FileNotFoundError):
     stop('No position file found --> best be named "position.txt"')
     
@@ -501,15 +540,12 @@ for f in files:
     
     im = plt.imread(f)
     data, sat = flattenrgb(im, BITS, SATLIM)
-
     d4stats, roi , _ = calculate_beamwidths(data)
 
     beam_stats += [d4stats]
     chl_sat += [sat]
     img_roi += [roi]
-
-
-    
+  
 beam_stats = np.asarray(beam_stats)
 chl_sat = np.asarray(chl_sat)
 img_roi = np.asarray(img_roi)
