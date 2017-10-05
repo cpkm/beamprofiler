@@ -20,6 +20,7 @@ import scipy.optimize as opt
 import uncertainties as un
 
 from matplotlib.gridspec import GridSpec
+from mpl_toolkits.mplot3d import Axes3D
 
 
 def stop(s = 'error'): raise Exception(s)
