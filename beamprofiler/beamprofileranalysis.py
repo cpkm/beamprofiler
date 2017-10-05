@@ -88,7 +88,7 @@ def normalize(data, offset=0):
         return shift/scale + offset
     
 
-def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030E-6):
+def gaussianbeamwaist(z,z0,d0,M2=1,wl=1.030E-6,const=0):
     '''
     generate gaussian beam profile w(z)
 
