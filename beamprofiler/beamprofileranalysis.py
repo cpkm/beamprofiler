@@ -10,98 +10,82 @@ I ~ exp(-2*r**2/w0**2)
 w0 is 1/e^2 waist radius
 w0 = 2*sigma (sigma normal definition in gaussian)
 """
+import glob
+import warnings
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.gridspec import GridSpec
 import scipy.optimize as opt
 import uncertainties as un
 
-import glob
-import time
-import warnings
-import os
+from matplotlib.gridspec import GridSpec
+
 
 def stop(s = 'error'): raise Exception(s)
 
 
-def gaussian2D(xy_meshgrid,x0,y0,sigx,sigy,amp,const,theta=0):
+def pix2len(input):
+    '''Convert pixels to length.
     '''
-    generates a 2D gaussian surface of size (n x m)
+    if np.isscalar(input):
+        output = input*PIXSIZE
+    else:
+        output =  [x*PIXSIZE for x in input]
+
+    return output
+
+
+def make_ticklabels_invisible(axes):
+    for ax in axes:
+        for tl in ax.get_xticklabels() + ax.get_yticklabels():
+            tl.set_visible(False)
+
+
+def read_position(file_dir):
+    '''Parse position file.
+    '''
+    unit_line = 2
+    pos_file = file_dir + '/position.txt' 
+    z = np.loadtxt(pos_file, skiprows = unit_line)
+    with open(pos_file) as f:
+        header = f.readlines()[:unit_line]
     
-    Inputs:
+    unit = header[unit_line-1].split('=')[1].strip().lower()
     
-        xy_meshgrid = [x,y]
-        x = meshgrid of x array
-        y = meshgrid of y array
+    if unit=='m':
+        s = 1
+    elif unit=='mm':
+        s=1E-3
+    elif unit=='um':
+        s=1E-6
+    elif unit=='nm':
+        s=1E-9
+    elif unit=='pm':
+        s=1E-12
+    else:
+        #default to mm
+        s=1E-3
         
-    where x and y are of size (n x m)
-    n = y.shape[0] (or x.) = number of rows
-    m = x.shape[1] (or y.) = number of columns
+    z = 2*s*z
     
-        x0,y0 = peak location
-    
-        sig_ = standard deviation in x and y, gaussian 1/e radius
-    
-        amp = amplitude
-    
-        const = offset (constant)
-
-        theta = rotation parameter, 0 by default
-    
-    Output:
+    return z
         
-        g.ravel() = flattened array of gaussian amplitude data
-    
-    where g is the 2D array of gaussian amplitudes of size (n x m)
+
+def normalize(data, offset=0):
     '''
-
-    x = xy_meshgrid[0]
-    y = xy_meshgrid[1]
-
-    a = np.cos(theta)**2/(2*sigx**2) + np.sin(theta)**2/(2*sigy**2)
-    b = -np.sin(2*theta)/(4*sigx**2) + np.sin(2*theta)/(4*sigy**2)
-    c = np.sin(theta)**2/(2*sigx**2) + np.cos(theta)**2/(2*sigy**2)
-
-    g = amp*np.exp(-(a*(x-x0)**2 -b*(x-x0)*(y-y0) + c*(y-y0)**2)) + const
-       
-    return g.ravel()
-
-
-def fitgaussian2D(data, xy_tuple, rot=None):
+    normalize a dataset
+    data is array or matrix to be normalized
+    offset = (optional) constant offset
     '''
-    fits data to 2D gaussian function
+    shift = data-data.min()
+    scale = data.max()-data.min()
 
-    Inputs:
-        data = 2D array of image data
-        xy_tuple = x and y data as a tuple. each is a meshgrid
-        rot = enable rotation, default is None, if anything else rotation is allowed
-    
-    Outputs:
-        popt, pcov = optimized parameters and covarience matrix
-            popt = [x0,y0,sigx,sigy,amp,const,*theta], *theta not included if rot=None
-    '''
-
-    data = data.astype(float)
-
-    x = xy_tuple[0]
-    y = xy_tuple[1]
-    
-    ind0 = np.unravel_index(data.argmax(), data.shape)   
-    x0 = x[ind0]
-    y0 = y[ind0]
-    sigx = x.max()/(2*4)
-    sigy = y.max()/(2*4)
-    
-    p0 = [x0,y0,sigx,sigy,data.max(),0]
-
-    if rot is not None:
-        p0 += [0]
-    
-    popt,pcov = opt.curve_fit(gaussian2D,(x,y),data.ravel(),p0)
-    
-    return popt,pcov
+    if scale == 0:
+        warnings.warn('Divide-by-zero in Normalization. Scaled to 1.')
+        return np.ones(data.shape) + offset
+    else:
+        return shift/scale + offset
     
 
 def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030E-6):
@@ -137,7 +121,8 @@ def gaussianbeamwaist(z,z0,d0,M2=1,const=0,wl=1.030E-6):
 
     return w
 
-def fitM2(dz, z, wl=1.03E-6):
+
+def fit_M2(dz, z, wl=1.03E-6):
     '''
     Everything is SI units.
     Inputs:
@@ -188,56 +173,7 @@ def fitM2(dz, z, wl=1.03E-6):
     return value, std
     
 
-
-def getroi(data,Nsig=3):
-    '''
-    ***OBSOLETE***
-    Generates a region of interest for a 2D array, based on the varience of the data.
-    Cropping box is defined by [left, bottom, width, height]
-    
-    Inputs:
-        data = data array, 2D
-        Nsig = number of std away from average to include in roi, default is 4 (99.994% inclusion)
-        
-    Outputs:
-        data_roi = cropped data set, 2D array, size height x width    
-    '''
-    
-    datax = np.sum(data,0)
-    datay = np.sum(data,1)
-    
-    x = np.arange(datax.shape[0])
-    y = np.arange(datay.shape[0])
-
-    avgx = np.average(x, weights = datax)
-    avgy = np.average(y, weights = datay)
-    
-    sigx = np.sqrt(np.sum(datax*(x-avgx)**2)/datax.sum())
-    sigy = np.sqrt(np.sum(datay*(y-avgy)**2)/datay.sum())
-
-    left = np.int(avgx - Nsig*sigx)
-    bottom = np.int(avgy - Nsig*sigy)
-    width = np.int(2*Nsig*sigx)
-    height = np.int(2*Nsig*sigy)
-
-    if left <= 0:
-        width += left
-        left = 0
-
-    if bottom <= 0:
-        height += bottom
-        bottom = 0
-
-    if left+width > data.shape[1]:
-        width = data.shape[1] - left
-
-    if bottom+height > data.shape[0]:
-        height = data.shape[0] - bottom 
-
-    return data[bottom:bottom+height,left:left+width]
-
-
-def flattenrgb(im, bits=8, satlim=0.001):
+def flatten_rgb(im, bits=8, satlim=0.001):
     '''
     Flattens rbg array, excluding saturated channels
     '''
@@ -262,55 +198,6 @@ def flattenrgb(im, bits=8, satlim=0.001):
 
     return output, sat_det
     
-
-def d4sigma(data, xy):
-    
-    '''
-    ***OBSOLETE*** see calculate_2D_moments
-    calculate D4sigma of beam
-    x,y,data all same size
-    A is normalization factor
-    returns averages and d4sig in x and y
-    x and y directions are orientation of image. no adjustment
-    '''
-    
-    x = xy[0]
-    y = xy[1]
-    
-    dx,dy = np.meshgrid(np.gradient(x[0]),np.gradient(y[:,0]))
-
-    A = np.sum(data*dx*dy)
-    
-    avgx = np.sum(data*x*dx*dy)/A
-    avgy = np.sum(data*y*dx*dy)/A
-    
-    d4sigmax = 4*np.sqrt(np.sum(data*(x-avgx)**2*dx*dy)/A)
-    d4sigmay = 4*np.sqrt(np.sum(data*(y-avgy)**2*dx*dy)/A)
-    
-    return np.array([avgx, avgy, d4sigmax, d4sigmay])
-    
-
-def normalize(data, offset=0):
-    '''
-    normalize a dataset
-    data is array or matrix to be normalized
-    offset = (optional) constant offset
-    '''
-    shift = data-data.min()
-    scale = data.max()-data.min()
-
-    if scale == 0:
-        warnings.warn('Divide-by-zero in Normalization. Scaled to 1.')
-        return np.ones(data.shape) + offset
-    else:
-        return shift/scale + offset
-    
-
-def make_ticklabels_invisible(axes):
-    for ax in axes:
-        for tl in ax.get_xticklabels() + ax.get_yticklabels():
-            tl.set_visible(False)
-
 
 def calculate_beamwidths(data):
     '''
@@ -452,46 +339,6 @@ def get_roi(data,roi):
 
     return data[bottom:bottom+height,left:left+width]
 
-
-def pix2len(input):
-
-    if np.isscalar(input):
-        output = input*PIXSIZE
-    else:
-        output =  [x*PIXSIZE for x in input]
-
-    return output
-
-
-def read_position(file_dir):
-    '''Parse position file.
-    '''
-    unit_line = 2
-    pos_file = file_dir + '/position.txt' 
-    z = np.loadtxt(pos_file, skiprows = unit_line)
-    with open(pos_file) as f:
-        header = f.readlines()[:unit_line]
-    
-    unit = header[unit_line-1].split('=')[1].strip().lower()
-    
-    if unit=='m':
-        s = 1
-    elif unit=='mm':
-        s=1E-3
-    elif unit=='um':
-        s=1E-6
-    elif unit=='nm':
-        s=1E-9
-    elif unit=='pm':
-        s=1E-12
-    else:
-        #default to mm
-        s=1E-3
-        
-    z = 2*s*z
-    
-    return z
-        
     
 '''
 End of definitions
@@ -539,7 +386,7 @@ img_roi = []
 for f in files:
     
     im = plt.imread(f)
-    data, sat = flattenrgb(im, BITS, SATLIM)
+    data, sat = flatten_rgb(im, BITS, SATLIM)
     d4stats, roi , _ = calculate_beamwidths(data)
 
     beam_stats += [d4stats]
@@ -555,8 +402,8 @@ d4x = beam_stats[:,0]
 d4y = beam_stats[:,1]
 
 #fit to gaussian mode curve
-valx, stdx = fitM2(d4x,z)
-valy, stdy = fitM2(d4y,z)
+valx, stdx = fit_M2(d4x,z)
+valy, stdy = fit_M2(d4y,z)
 
 
 ##
@@ -566,7 +413,7 @@ valy, stdy = fitM2(d4y,z)
 focus_number = np.argmin(np.abs(valx[0]-z))
 
 im = plt.imread(files[focus_number])
-data, SAT = flattenrgb(im, BITS, SATLIM)
+data, SAT = flatten_rgb(im, BITS, SATLIM)
 data = normalize(get_roi(data.astype(float), img_roi[focus_number]))
 
 #put x,y in um, z in mm
