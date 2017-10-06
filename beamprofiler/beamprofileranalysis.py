@@ -351,7 +351,7 @@ SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
 PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
 
 cur_dir = False
-alt_file_location = 'asymmetric scan'
+alt_file_location = '/Users/cpkmanchee/Google Drive/PhD/Data/2017-09-20 Rod seed beam profile/2017-09-20 Unamplied seed'
 
 if cur_dir:
     file_dir = os.getcwd()
@@ -469,6 +469,6 @@ ax5.yaxis.tick_right()
 ax5.yaxis.set_label_position('right')
 ax5.legend(loc=9)
 
-ax6.text(-0.2,0.2,'M2x = {:.2f}\nM2y = {:.2f}\nwx = {:.2e}\nwy = {:.2e}'.format(valx[2],valy[2],valx[1]/2,valy[1]/2))
+ax6.text(-0.2,0.2,'M2x = {:.2f}\nM2y = {:.2f}\nwx = {:.0f} um\nwy = {:.0f} um'.format(valx[2],valy[2],(1E6)*valx[1]/2,(1E6)*valy[1]/2))
 
 plt.show()
