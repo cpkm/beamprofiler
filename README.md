@@ -23,6 +23,21 @@ To use the analysis method, copy [knifeedgeanalysis.py](knifeedge/knifeedgeanaly
 
 ### Usage
 Running the script [m2gui](m2scan/m2gui.py) will start the GUI.
+#### Beam profile images
+##### Image capture
+1. Select camera from drop-down menu. If multiple cameras are connected, they are listed as 0,1,2,... Pick the correct one.
+2. Select the appropriate pixel bit depth of the camera. Default is 8-bits.
+2. Press 'Start Preview' to begin a live stream from the camera. This allows for easy alignment/centering of the beam.
+3. Choose a Save directory and filename. Use the 'Browse' button to select a directory.
+4. Enter a numerical value of number of images to average per capture. Default is 10.
+4. Press 'Capture' to save a beam profile. Images will be saved in the selected directory and numbered starting with 000.jpeg.
+5. Take note (seperately) of the micrometer stage position for each image. Create a text file, position.txt (see details below), and input the stage positions. Note: these should be the real positions as read on the scale. The analysis accounts for the 2-pass geometry of the system.
+
+##### Camera pixel saturation
+The program will warn you if one or more of the camera channels (RGB) are saturated by the beam. Above the preview image there are three indicator boxes, one for each red, blue and green channels. If a specific channel is saturated the box will light up with it's specific colour. Unsaturated channel boxes remain grey. A channel is deamed saturated if 1% of the pixels are reading the maximum value.
+
+#### Beam pointing
+From the main screen press 'Beam pointing' to open the Beam Pointing window.
 
 
 ## 3. beamprofiler
