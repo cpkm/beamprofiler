@@ -22,7 +22,13 @@ import uncertainties as un
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.mplot3d import Axes3D
 
-__all__ = ['stop', 'pix2len', 'make_ticklabels_invisible', 'read_position', 'normalize', 'gaussianbeamwaist', 'fit_M2', 'flatten_rgb', 'calculate_beamwidths', 'calculate_2D_moments', 'get_roi']
+__all__ = ['stop', 'pix2len', 'make_ticklabels_invisible', 'read_position', 'normalize', 'gaussianbeamwaist', 'fit_M2', 'flatten_rgb', 'calculate_beamwidths', 'calculate_2D_moments', 'get_roi', 'BITS', 'SATLIM', 'PIXSIZE']
+
+
+BITS = 8       #image channel intensity resolution
+SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
+PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
+
 
 def stop(s = 'error'): raise Exception(s)
 
@@ -90,7 +96,7 @@ def normalize(data, offset=0):
         return shift/scale + offset
 
 
-def gaussianbeamwaist(z,z0,d0,M2=1,wl=1.030E-6,const=0):
+def gaussianbeamwaist(z, z0, d0, M2=1, wl=1.030E-6, const=0):
     '''
     generate gaussian beam profile w(z)
 
