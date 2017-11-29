@@ -34,8 +34,11 @@ z = np.linspace(-5*zR_in,5*zR_in,20)
 w_in = gaussianbeamwaist(z,z0_in,d0_in,M2_in,wl_in)
 d_in = 2*w_in
 
+ax1 = plt.subplot([1,1,1])
+ax1.plot(z,d_in,'bx')
+plt.show()
 #Fit test data
-val, std = fit_M2(d_in,z,wl_in)
+#val, std = fit_M2(d_in,z,wl_in)
 
 #Plot results
 ax1 = plt.subplot([1,1,1])
