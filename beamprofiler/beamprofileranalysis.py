@@ -159,7 +159,7 @@ def fit_M2(dz, z, wl=1.03E-6):
     f = lambda z,a,b,c: (a + b*z + c*z**2)**(1/2)
 
     popt,pcov = opt.curve_fit(f,z,dz,p0,bounds=limits)
-
+    print(popt)
     #create correlated uncertainty values
     (a,b,c) = un.correlated_values(popt,pcov)
 
@@ -352,7 +352,8 @@ SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
 PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
 
 cur_dir = False
-alt_file_location = '/Users/cpkmanchee/Google Drive/PhD/Data/2017-09-20 Rod seed beam profile/2017-09-20 Unamplied seed'
+alt_file_location = '/Users/cpkmanchee/Documents/Code/beamprofiler/beamprofiler/asymmetric scan'
+#'/Users/cpkmanchee/Google Drive/PhD/Data/2017-09-20 Rod seed beam profile/2017-09-20 Unamplied seed'
 
 if cur_dir:
     file_dir = os.getcwd()
