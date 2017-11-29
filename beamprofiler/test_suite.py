@@ -22,6 +22,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from beamprofileranalysis import *
 
 ## Test M2 fitting
+f1,ax1 = plt.subplots(1)
 
 #Define input test points
 zR_in = 2.0E-6
@@ -34,17 +35,13 @@ z = np.linspace(-5*zR_in,5*zR_in,20)
 w_in = gaussianbeamwaist(z,z0_in,d0_in,M2_in,wl_in)
 d_in = 2*w_in
 
-ax1 = plt.subplot([1,1,1])
-ax1.plot(z,d_in,'bx')
-plt.show()
 #Fit test data
-#val, std = fit_M2(d_in,z,wl_in)
+val, std = fit_M2(d_in,z,wl_in)
 
 #Plot results
-ax1 = plt.subplot([1,1,1])
 ax1.plot(z,d_in,'bx')
-ax1.plot(z,2*gaussianbeamwaist(z,*val[:,3]))
-
+ax1.plot(z,2*gaussianbeamwaist(z,*val[:3]))
+plt.show()
 #Create table to compare values
 
 
