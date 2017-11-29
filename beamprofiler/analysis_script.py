@@ -12,9 +12,10 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from beamprofileranalysis import *
 
-BITS = 8       #image channel intensity resolution
-SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
-PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
+#Override defaults if necessary (imported from *)
+#BITS = 8       #image channel intensity resolution
+#SATLIM = 0.001  #fraction of non-zero pixels allowed to be saturated
+#PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
 
 cur_dir = False
 alt_file_location = '/Users/cpkmanchee/Google Drive/PhD/Data/2017-09-20 Rod seed beam profile/2017-09-20 Unamplied seed'
@@ -25,6 +26,7 @@ else:
     file_dir = alt_file_location
 
 files = glob.glob(file_dir+'/*.jp*g')
+files.sort()
 
 # Consistency check, raises error if failure
 if not files:
