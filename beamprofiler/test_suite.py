@@ -27,7 +27,7 @@ def test_fit(val_in,na,wl_in,N=20):
     nd = np.floor(N/4)
 
     #create symmetric spacial array within ISO spec.
-    z = np.join([np.linspace(-4*zR_in,-2*zR_in,nd), np.linspace(-zR_in,zR_in,2*nd), np.linspace(2*zR_in,4*zR_in,nd)])
+    z = np.array([np.linspace(-4*zR_in,-2*zR_in,nd), np.linspace(-zR_in,zR_in,2*nd), np.linspace(2*zR_in,4*zR_in,nd)])
 
     d_in = 2*gaussianbeamwaist(z,*val_in[:3],wl_in)*(1+(na*(np.random.randn(z.size))))
 
