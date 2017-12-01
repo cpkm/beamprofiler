@@ -21,20 +21,15 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from beamprofileranalysis import *
 
-def test_fit(val_in,na,wl_in,N=20):
+def test_fit(z,val_in,na,wl_in):
     '''run test
     '''
-    nd = np.floor(N/4)
-
-    #create symmetric spacial array within ISO spec.
-    z = np.array([np.linspace(-4*zR_in,-2*zR_in,nd), np.linspace(-zR_in,zR_in,2*nd), np.linspace(2*zR_in,4*zR_in,nd)])
-
     d_in = 2*gaussianbeamwaist(z,*val_in[:3],wl_in)*(1+(na*(np.random.randn(z.size))))
 
     #Fit test data
     val, err = fit_M2(d_in,z,wl_in)
 
-    return val,err
+    return val,err,d_in
 
 ## Test M2 fitting
 f1,(ax1,ax2) = plt.subplots(2,1)
@@ -51,9 +46,15 @@ theta_in = 2*M2_in*wl_in/(np.pi*d0_in/2)
 val_in = [z0_in, d0_in, M2_in, theta_in, zR_in]
 
 # Noise amplitude
+N=20
 na = 0.02
+nd = np.floor(N/4)
 
-val,std = test_fit(val_in,na,wl_in)
+#create symmetric spacial array within ISO spec.
+z = np.concatenate((np.linspace(-4*zR_in,-2*zR_in,nd), np.linspace(-zR_in,zR_in,2*nd), np.linspace(2*zR_in,4*zR_in,nd)))
+
+
+val,std,d_in = test_fit(z,val_in,na,wl_in)
 
 #Plot results
 ax1.plot(z,d_in,'bx')
