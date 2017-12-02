@@ -46,15 +46,26 @@ theta_in = 2*M2_in*wl_in/(np.pi*d0_in/2)
 val_in = [z0_in, d0_in, M2_in, theta_in, zR_in]
 
 # Noise amplitude
-N=20
+num_pts=20
 na = 0.02
-nd = np.floor(N/4)
+nd = np.floor(num_pts/4)
 
 #create symmetric spacial array within ISO spec.
 z = np.concatenate((np.linspace(-4*zR_in,-2*zR_in,nd), np.linspace(-zR_in,zR_in,2*nd), np.linspace(2*zR_in,4*zR_in,nd)))
 
+#Perform test
+v_avg=0
+v_std=0
+s_avg=0
+s_std=0
 
-val,std,d_in = test_fit(z,val_in,na,wl_in)
+for i in range(N):
+    v,s,_ = test_fit(z,val_in,na,wl_in)
+
+    v_avg = v_avg + v/(i+1)
+    v_std = v_avg + v/(i+1)
+    s_avg = s_avg + s/(i+1)
+    s_std = v_avg + s/(i+1)
 
 #Plot results
 ax1.plot(z,d_in,'bx')
