@@ -96,7 +96,7 @@ plot_grid = [3,6]
 plot_w = 10
 asp_ratio = plot_grid[0]/plot_grid[1]
 plot_h = plot_w*asp_ratio
-
+colormap = plt.cm.plasma
 
 fig = plt.figure(figsize=(plot_w,plot_h), facecolor='w')
 gs = GridSpec(plot_grid[0], plot_grid[1])
@@ -111,7 +111,7 @@ ax6 = plt.subplot(gs[-1,0])
 ax6.axis('off')
 make_ticklabels_invisible([ax2])
 
-ax2.imshow(data, cmap=plt.cm.plasma, origin='lower', interpolation='bilinear',
+ax2.imshow(data, cmap=colormap, origin='lower', interpolation='bilinear',
     extent=(x.min(), x.max(), y.min(), y.max()))
 contours = data.max()*(np.exp(-np.array([2,1.5,1])**2/2))
 widths = np.array([0.5,0.25,0.5])
@@ -123,14 +123,14 @@ ax4.set_xlabel('x (um)')
 ax1.plot(normalize(np.sum(data,1)), y, 'k')
 ax1.set_ylabel('y (um)')
 
-ax3.plot_surface(X,Y,data, cmap=plt.cm.plasma)
+ax3.plot_surface(X,Y,data, cmap=colormap)
 ax3.set_ylabel('y (um)')
 ax3.set_xlabel('x (um)')
 
-ax5.plot(Z,d4x*1E6,'bx',markerfacecolor='none')
-ax5.plot(Z,d4y*1E6,'g+',markerfacecolor='none')
-ax5.plot(Z,2*gaussianbeamwaist(z,*valx[:3])*1E6,'b', label='X')
-ax5.plot(Z,2*gaussianbeamwaist(z,*valy[:3])*1E6,'g', label='Y')
+ax5.plot(Z,d4x*1E6,'x', c=colormap(0.1), markerfacecolor='none')
+ax5.plot(Z,d4y*1E6,'+', c=colormap(0.9), markerfacecolor='none')
+ax5.plot(Z,2*gaussianbeamwaist(z,*valx[:3])*1E6, c=colormap(0.3), label='X')
+ax5.plot(Z,2*gaussianbeamwaist(z,*valy[:3])*1E6, c=colormap(0.7), label='Y')
 ax5.set_xlabel('z (mm)')
 ax5.set_ylabel('Spot size, 2w (um)')
 ax5.yaxis.tick_right()
@@ -138,5 +138,15 @@ ax5.yaxis.set_label_position('right')
 ax5.legend(loc=9)
 
 ax6.text(-0.2,0.2,'M2x = {:.2f}\nM2y = {:.2f}\nwx = {:.0f} um\nwy = {:.0f} um'.format(valx[2],valy[2],(1E6)*valx[1]/2,(1E6)*valy[1]/2))
+
+rows = ['z0', 'd0', 'M2', 'theta', 'zR']
+cols = ['val_x', 'std_x', 'val_y', 'std_y']
+tabString = [['{:.3e}'.format(j) for j in i] for i in np.transpose([valx,stdx,valy,stdy])]
+
+fig2, ax7 = plt.subplots(1,1)
+ax7.axis('tight')
+ax7.axis('off')
+ax7.table(cellText=tabString, 
+    rowLabels = rows, colLabels = cols, loc='center')
 
 plt.show()
