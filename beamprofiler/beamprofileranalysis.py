@@ -368,3 +368,15 @@ def get_roi(data,roi):
         height = np.int(height)
 
     return data[bottom:bottom+height,left:left+width]
+
+
+def check_phase(beam_stats):
+    '''Check relative phases of calculated beam widths. Fix 'flipped' 
+        axes.
+        beam_stats is an nx3 array, each 'n' is an output from 
+        calculate_beamwidths.   
+    '''
+    d4x = beam_stats[:,0]
+    d4y = beam_stats[:,1]
+    phi = beam_stats[:,2]
+
