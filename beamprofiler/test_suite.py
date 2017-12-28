@@ -31,6 +31,24 @@ def test_fit(z,val_in,na,wl_in):
 
     return val,err,d_in
 
+
+def gaussian2D(XY, sx, sy, x0, y0 phi):
+    '''2D gaussian
+    XY - xy coordinate??
+    sx - sigma x
+    sy sigma y
+    '''
+    #x=
+    #y=
+    #need to sort out xy and how to handle
+
+    a = np.cos(phi)**2/(2*sx**2) + np.sin(phi)**2/(2*sy**2)
+    b = -np.sin(2*phi)/(4*sx**2) + np.sin(2*phi)/(4*sy**2)
+    c = np.sin(phi)**2/(2*sx**2) + np.scos(phi)**2/(2*sy**2)
+
+    output = np.exp(-(a*(x-x0)**2 + 2*b*(x-x0)*(y-y0) + c*(y-y0)**2))
+
+## Test M2 fitting
 #Define input test points
 z0_in = 0
 d0_in = 50.0E-6
@@ -83,4 +101,17 @@ plt.show()
 
 #ax1.plot(z,d_in,'bx')
 #ax1.plot(z,2*gaussianbeamwaist(z,*val[:3], wl_in))
+
+
 ## Test image processing
+# Generate test image
+
+w = 1280
+h = 720
+bits = 8
+
+
+
+
+
+
