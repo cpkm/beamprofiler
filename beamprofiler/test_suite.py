@@ -77,7 +77,6 @@ nd = np.floor(num_pts/4)
 #create symmetric spacial array within ISO spec.
 z = np.concatenate((np.linspace(-4*zR_in,-2*zR_in,nd), np.linspace(-zR_in,zR_in,2*nd), np.linspace(2*zR_in,4*zR_in,nd)))
 
-print(np.size(val_in))
 #Perform test
 v_sum=np.zeros(np.size(val_in))
 v2_sum=np.zeros(np.size(val_in))
@@ -99,18 +98,17 @@ std_avg = s_sum/N
 std_std = ((1/(N-1))*(s2_sum - s_sum**2/N))**(1/2)
 
 #Plot results
-f1,ax2 = plt.subplots(1,1)
+f1,ax1 = plt.subplots(1,1)
 rows = ['z0', 'd0', 'M2', 'theta', 'zR']
 cols = ['Actual', 'Fit', 'MCsig', 'Fit Sigma','MCsig']
 
-ax2.axis('tight')
-ax2.axis('off')
-ax2.table(cellText=np.transpose([val_in,val_avg,val_std,std_avg,std_std]), rowLabels = rows, colLabels = cols, loc='center')
-plt.show()
+ax1.axis('tight')
+ax1.axis('off')
+ax1.table(cellText=np.transpose([val_in,val_avg,val_std,std_avg,std_std]), rowLabels = rows, colLabels = cols, loc='center')
 #Create table to compare values
 
-#ax1.plot(z,d_in,'bx')
-#ax1.plot(z,2*gaussianbeamwaist(z,*val[:3], wl_in))
+#ax0.plot(z,d_in,'bx')
+#ax0.plot(z,2*gaussianbeamwaist(z,*val[:3], wl_in))
 
 
 ## Test image processing
@@ -126,26 +124,39 @@ y = pix2len(np.arange(h))
 
 #beam profile properties
 sx = pix2len(h)/12
-sy = sx
+sy = sx/2
 x0 = pix2len(w/2)
 y0 = pix2len(h/2)
 phi = 0
+amp = 256
 
-amp = 200
 
 #generate image
 data = amp*gaussian2D(np.meshgrid(x,y),sx,sy,x0,y0,phi)
 img = digitize_array(data, bits=bits).reshape(h,w,1).repeat(3,2)
 
 #analyze image
-print(type(img))
-im = flatten_rgb(img, force_chn=0)
-print(type(im))
+im,sat_det = flatten_rgb(img, force_chn=0)
 beamwidths, roi, moments = calculate_beamwidths(im)
 
-print(beamwidths,moments)
-plt.imshow(img)
+x0_out = pix2len(roi[0]) 
+y0_out = pix2len(roi[2]) 
+
+#Plot results
+f2,ax2 = plt.subplots(1,1)
+rows = ['dx', 'dy', 'phi', 'x0', 'y0']
+cols = ['Actual', 'Fit', '"%" diff']
+
+val_in = [4*sx,4*sy,phi,x0,y0]
+val_out = beamwidths+[x0_out,y0_out]
+ratio = np.asarray(val_out)/np.asarray(val_in)
+
+ax2.axis('tight')
+ax2.axis('off')
+ax2.table(cellText=np.transpose([val_in,val_out,ratio]), rowLabels = rows, colLabels = cols, loc='center')
+
+f3,ax3 = plt.subplots(1,1)
+ax3.imshow(im)
+
 plt.show()
-
-
 
