@@ -32,21 +32,31 @@ def test_fit(z,val_in,na,wl_in):
     return val,err,d_in
 
 
-def gaussian2D(XY, sx, sy, x0, y0 phi):
+def gaussian2D(XY, sx, sy, x0, y0, phi):
     '''2D gaussian
     XY - xy coordinate??
     sx - sigma x
     sy sigma y
     '''
-    #x=
-    #y=
-    #need to sort out xy and how to handle
+    x,y = XY
 
     a = np.cos(phi)**2/(2*sx**2) + np.sin(phi)**2/(2*sy**2)
     b = -np.sin(2*phi)/(4*sx**2) + np.sin(2*phi)/(4*sy**2)
-    c = np.sin(phi)**2/(2*sx**2) + np.scos(phi)**2/(2*sy**2)
+    c = np.sin(phi)**2/(2*sx**2) + np.cos(phi)**2/(2*sy**2)
 
     output = np.exp(-(a*(x-x0)**2 + 2*b*(x-x0)*(y-y0) + c*(y-y0)**2))
+
+    return output
+
+
+def digitize_array(data, bits=8):
+    '''digitize arrray. Round all values to integer. Saturate pixels over bit limit.
+    '''
+    data = data.astype(np.uint32)
+    data[data>2**bits-1] = 2**bits-1
+
+    return data
+
 
 ## Test M2 fitting
 #Define input test points
@@ -58,7 +68,7 @@ zR_in = np.pi*(d0_in/2)**2/(wl_in*M2_in)
 theta_in = 2*M2_in*wl_in/(np.pi*d0_in/2)
 val_in = [z0_in, d0_in, M2_in, theta_in, zR_in]
 
-N = 1000
+N = 10
 
 num_pts=10
 na = 0.05
@@ -106,12 +116,36 @@ plt.show()
 ## Test image processing
 # Generate test image
 
+#image properties
 w = 1280
 h = 720
 bits = 8
 
+x = pix2len(np.arange(w))
+y = pix2len(np.arange(h))
 
+#beam profile properties
+sx = pix2len(h)/12
+sy = sx
+x0 = pix2len(w/2)
+y0 = pix2len(h/2)
+phi = 0
 
+amp = 200
+
+#generate image
+data = amp*gaussian2D(np.meshgrid(x,y),sx,sy,x0,y0,phi)
+img = digitize_array(data, bits=bits).reshape(h,w,1).repeat(3,2)
+
+#analyze image
+print(type(img))
+im = flatten_rgb(img, force_chn=0)
+print(type(im))
+beamwidths, roi, moments = calculate_beamwidths(im)
+
+print(beamwidths,moments)
+plt.imshow(img)
+plt.show()
 
 
 
