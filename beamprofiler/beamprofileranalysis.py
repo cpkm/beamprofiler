@@ -33,13 +33,13 @@ PIXSIZE = 1.745E-6  #pixel size in m, measured 1.75um in x and y
 def stop(s = 'error'): raise Exception(s)
 
 
-def pix2len(input):
+def pix2len(input, pix=PIXSIZE):
     '''Convert pixels to length.
     '''
     if np.isscalar(input):
-        output = input*PIXSIZE
+        output = input*pix
     else:
-        output =  [x*PIXSIZE for x in input]
+        output =  [x*pix for x in input]
 
     return output
 
@@ -229,7 +229,7 @@ def flatten_rgb(im, bits=8, satlim=0.001, sgl_chn=False, force_chn=False):
     return output, sat_det
 
 
-def calculate_beamwidths(data):
+def calculate_beamwidths(data,pix=PIXSIZE):
     '''
     data = image matrix
     '''
@@ -270,7 +270,7 @@ def calculate_beamwidths(data):
 
     #create scaling array for pixels to meters
     #2nd moments must be scaled by square (units m**2)
-    pixel_scale = [pix2len(1)]*2 + [pix2len(1)**2]*3
+    pixel_scale = [pix2len(1,pix)]*2 + [pix2len(1,pix)**2]*3
 
     moments = pixel_scale*moments
     [ax,ay,s2x,s2y,s2xy] = moments
